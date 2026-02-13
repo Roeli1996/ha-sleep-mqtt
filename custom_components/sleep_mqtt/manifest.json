@@ -1,0 +1,10 @@
+{
+  "domain": "sleep_mqtt",
+  "name": "SleepAsAndroid MQTT Custom",
+  "codeowners": ["@Roeli1996"],
+  "config_flow": true,
+  "documentation": "https://github.com/Roeli1996/ha-sleep-mqtt/",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Roeli1996/ha-sleep-mqtt/new/main/issues",
+  "version": "1.0.0"
+}
