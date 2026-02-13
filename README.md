@@ -1,4 +1,4 @@
-# 🌙 SleepAsAndroid MQTT Custom (V2)
+# 🌙 Custom SleepAsAndroid MQTT Sensors for Home Assistant(V2)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/MAINTAINER-Roeli1996-blue.svg?style=for-the-badge)](https://github.com/Roeli1996)
