@@ -19,6 +19,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     
     sensor_list = [
         {"id": "event", "en": "Status", "nl": "Status", "u": None, "i": "mdi:bed"},
+        {"id": "sleep_phase", "en": "Sleep Phase", "nl": "Slaapfase", "u": None, "i": "mdi:chart-timeline-variant"},
         {"id": "start_time_display", "en": "Start Time", "nl": "Starttijd", "u": None, "i": "mdi:clock-start"},
         {"id": "stop_time_display", "en": "End Time", "nl": "Eindtijd", "u": None, "i": "mdi:clock-end"},
         {"id": "alarm_time_display", "en": "Alarm Time", "nl": "Wekker Tijd", "u": None, "i": "mdi:alarm"},
@@ -64,6 +65,7 @@ class SleepTracker:
         self.unix_stop = None
         self.last_event_time = None
         self.current_phase = "awake"
+        self.phase_display = "Wakker" if self.lang == 'nl' else "Awake"
         self.is_tracking = False
         self.totals = {"deep_sleep": 0, "light_sleep": 0, "rem_sleep": 0, "awake": 0}
         self.counts = {
@@ -103,11 +105,14 @@ class SleepTracker:
             self.is_tracking = False
             self.unix_stop = time.time()
             self.stop_time_str = timestamp
-            self.current_phase = None
+            self.phase_display = "Standby"
         elif event == "alarm_alert_start":
             self.alarm_time_str = timestamp
         elif event in ["deep_sleep", "light_sleep", "rem_sleep", "awake"]:
             self.current_phase = event
+            # Vertaling voor de sensor display
+            mapping = {"deep_sleep": "Diep", "light_sleep": "Licht", "rem_sleep": "REM", "awake": "Wakker"}
+            self.phase_display = mapping.get(event, event)
         elif event in self.counts:
             self.counts[event] += 1
             self.count_times[event] = timestamp
@@ -134,6 +139,7 @@ class SleepSensor(Entity):
     @property
     def state(self):
         if self._id == "event": return self._tracker.last_event
+        if self._id == "sleep_phase": return self._tracker.phase_display
         if self._id == "start_time_display": return self._tracker.start_time_str
         if self._id == "stop_time_display": return self._tracker.stop_time_str
         if self._id == "alarm_time_display": return self._tracker.alarm_time_str
