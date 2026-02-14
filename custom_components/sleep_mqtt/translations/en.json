@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure SleepAsAndroid MQTT Sensors",
+        "data": {
+          "device_name": "Device Name",
+          "topic_prefix": "MQTT Topic Prefix"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "event": { "name": "Status" },
+      "sleep_phase": { "name": "Sleep Phase" },
+      "start_time_display": { "name": "Start Time" },
+      "fell_asleep_time": { "name": "Fell Asleep" },
+      "stop_time_display": { "name": "End Time" },
+      "alarm_time_display": { "name": "Alarm Time" },
+      "combined_duration": { "name": "Sleep Duration" },
+      "efficiency": { "name": "Sleep Efficiency" },
+      "deep_sleep_percentage": { "name": "Deep Sleep" },
+      "light_sleep_percentage": { "name": "Light Sleep" },
+      "rem_sleep_percentage": { "name": "REM Sleep" },
+      "awake_percentage": { "name": "Awake" },
+      "sound_event_snore": { "name": "Snoring" },
+      "sound_event_talk": { "name": "Talking" },
+      "sound_event_cough": { "name": "Coughing" },
+      "last_sync": { "name": "Last Update" }
+    }
+  }
+}
