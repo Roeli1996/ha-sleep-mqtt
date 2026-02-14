@@ -6,5 +6,5 @@
   "documentation": "https://github.com/Roeli1996/ha-sleep-mqtt",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/Roeli1996/ha-sleep-mqtt/issues",
-  "version": "1.1.0"
+  "version": "1.2.0"
 }
