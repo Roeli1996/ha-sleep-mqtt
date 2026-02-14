@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "SleepAsAndroid MQTT Sensoren configureren",
+        "title": "SleepAsAndroid MQTT Sensors",
         "data": {
           "device_name": "Apparaatnaam",
           "topic_prefix": "MQTT Topic Voorvoegsel"
