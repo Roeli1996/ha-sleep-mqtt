@@ -10,35 +10,37 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "sleep_mqtt"
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Setup sensoren via config_entry."""
+    """Set up sensors based on a config_entry."""
     topic = config_entry.data['topic_prefix'].rstrip('/') + "/#"
     device_name = config_entry.data['device_name']
     unique_dev_id = config_entry.entry_id
     
+    # We gebruiken de systeemtaal alleen nog voor de attributen in de tracker
     sys_lang = hass.config.language if hasattr(hass.config, 'language') else 'en'
     lang = 'nl' if sys_lang == 'nl' else 'en'
     
+    # De 'name' is hier verwijderd, HA gebruikt de 'translation_key' i.c.m. strings.json
     sensor_list = [
-        {"id": "event", "en": "Status", "nl": "Status", "u": None, "i": "mdi:bed"},
-        {"id": "sleep_phase", "en": "Sleep Phase", "nl": "Slaapfase", "u": "fase", "i": "mdi:chart-timeline-variant", "sc": SensorStateClass.MEASUREMENT},
-        {"id": "start_time_display", "en": "Start Time", "nl": "Starttijd", "u": None, "i": "mdi:clock-start"},
-        {"id": "fell_asleep_time", "en": "Fell Asleep", "nl": "In slaap gevallen", "u": None, "i": "mdi:sleep"},
-        {"id": "stop_time_display", "en": "End Time", "nl": "Eindtijd", "u": None, "i": "mdi:clock-end"},
-        {"id": "alarm_time_display", "en": "Alarm Time", "nl": "Wekker Tijd", "u": None, "i": "mdi:alarm"},
-        {"id": "combined_duration", "en": "Sleep Duration", "nl": "Slaap Duur", "u": UnitOfTime.HOURS, "i": "mdi:timer-sand", "sc": SensorStateClass.MEASUREMENT},
-        {"id": "efficiency", "en": "Sleep Efficiency", "nl": "Slaap Efficiëntie", "u": "%", "i": "mdi:leaf", "sc": SensorStateClass.MEASUREMENT},
-        {"id": "deep_sleep_percentage", "en": "Deep Sleep", "nl": "Diepe Slaap", "u": "%", "i": "mdi:waves", "p": "deep_sleep", "sc": SensorStateClass.MEASUREMENT},
-        {"id": "light_sleep_percentage", "en": "Light Sleep", "nl": "Lichte Slaap", "u": "%", "i": "mdi:circle-slice-4", "p": "light_sleep", "sc": SensorStateClass.MEASUREMENT},
-        {"id": "rem_sleep_percentage", "en": "REM Sleep", "nl": "REM Slaap", "u": "%", "i": "mdi:eye-check", "p": "rem_sleep", "sc": SensorStateClass.MEASUREMENT},
-        {"id": "awake_percentage", "en": "Awake", "nl": "Wakker", "u": "%", "i": "mdi:clock-outline", "p": "awake", "sc": SensorStateClass.MEASUREMENT},
-        {"id": "sound_event_snore", "en": "Snoring", "nl": "Snurken", "u": "keer", "i": "mdi:reproduction", "t": True, "sc": SensorStateClass.MEASUREMENT},
-        {"id": "sound_event_talk", "en": "Talking", "nl": "Praten", "u": "keer", "i": "mdi:account-voice", "t": True, "sc": SensorStateClass.MEASUREMENT},
-        {"id": "sound_event_cough", "en": "Coughing", "nl": "Hoesten", "u": "keer", "i": "mdi:alert-decagram", "t": True, "sc": SensorStateClass.MEASUREMENT},
-        {"id": "last_sync", "en": "Last Sync", "nl": "Laatste Update", "u": None, "i": "mdi:sync"}
+        {"id": "event", "key": "event", "u": None, "i": "mdi:bed"},
+        {"id": "sleep_phase", "key": "sleep_phase", "u": "fase", "i": "mdi:chart-timeline-variant", "sc": SensorStateClass.MEASUREMENT},
+        {"id": "start_time_display", "key": "start_time_display", "u": None, "i": "mdi:clock-start"},
+        {"id": "fell_asleep_time", "key": "fell_asleep_time", "u": None, "i": "mdi:sleep"},
+        {"id": "stop_time_display", "key": "stop_time_display", "u": None, "i": "mdi:clock-end"},
+        {"id": "alarm_time_display", "key": "alarm_time_display", "u": None, "i": "mdi:alarm"},
+        {"id": "combined_duration", "key": "combined_duration", "u": UnitOfTime.HOURS, "i": "mdi:timer-sand", "sc": SensorStateClass.MEASUREMENT},
+        {"id": "efficiency", "key": "efficiency", "u": "%", "i": "mdi:leaf", "sc": SensorStateClass.MEASUREMENT},
+        {"id": "deep_sleep_percentage", "key": "deep_sleep_percentage", "u": "%", "i": "mdi:waves", "p": "deep_sleep", "sc": SensorStateClass.MEASUREMENT},
+        {"id": "light_sleep_percentage", "key": "light_sleep_percentage", "u": "%", "i": "mdi:circle-slice-4", "p": "light_sleep", "sc": SensorStateClass.MEASUREMENT},
+        {"id": "rem_sleep_percentage", "key": "rem_sleep_percentage", "u": "%", "i": "mdi:eye-check", "p": "rem_sleep", "sc": SensorStateClass.MEASUREMENT},
+        {"id": "awake_percentage", "key": "awake_percentage", "u": "%", "i": "mdi:clock-outline", "p": "awake", "sc": SensorStateClass.MEASUREMENT},
+        {"id": "sound_event_snore", "key": "sound_event_snore", "u": "keer", "i": "mdi:reproduction", "t": True, "sc": SensorStateClass.MEASUREMENT},
+        {"id": "sound_event_talk", "key": "sound_event_talk", "u": "keer", "i": "mdi:account-voice", "t": True, "sc": SensorStateClass.MEASUREMENT},
+        {"id": "sound_event_cough", "key": "sound_event_cough", "u": "keer", "i": "mdi:alert-decagram", "t": True, "sc": SensorStateClass.MEASUREMENT},
+        {"id": "last_sync", "key": "last_sync", "u": None, "i": "mdi:sync"}
     ]
     
     tracker = SleepTracker(lang)
-    entities = [SleepSensor(tracker, device_name, s, lang, unique_dev_id) for s in sensor_list]
+    entities = [SleepSensor(tracker, device_name, s, unique_dev_id) for s in sensor_list]
     async_add_entities(entities)
 
     async def global_msg_recv(msg):
@@ -50,7 +52,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             for entity in entities:
                 entity.async_write_ha_state()
         except Exception as e:
-            _LOGGER.error("Fout bij SleepAsAndroid MQTT message: %s", e)
+            _LOGGER.error("Error processing SleepAsAndroid MQTT message: %s", e)
 
     await async_subscribe(hass, topic, global_msg_recv)
 
@@ -81,7 +83,6 @@ class SleepTracker:
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.last_sync_str = timestamp
         
-        # Start of Pauze (volgens jouw redenering beide direct starten)
         if event in ["sleep_tracking_started", "sleep_tracking_paused"]:
             if not self.unix_start:
                 self.reset()
@@ -90,13 +91,12 @@ class SleepTracker:
             
             self.is_tracking = True
             self.last_event_time = time.time()
-            self.current_phase_num = 4 # Wakker
+            self.current_phase_num = 4
             self.current_phase_key = "awake"
             self.current_phase_text = "Wakker" if self.lang == 'nl' else "Awake"
             self.last_event = event
             return
 
-        # Auto-start voor gemiste events
         if event in ["deep_sleep", "light_sleep", "rem_sleep", "awake"] and not self.unix_start:
             self.reset()
             self.unix_start = time.time()
@@ -104,7 +104,6 @@ class SleepTracker:
             self.is_tracking = True
             self.last_event_time = time.time()
 
-        # Tijdregistratie
         if self.is_tracking:
             now = time.time()
             if self.last_event_time:
@@ -113,7 +112,6 @@ class SleepTracker:
                     self.totals[self.current_phase_key] += duration
             self.last_event_time = now
 
-        # Fase afhandeling & "In slaap gevallen" detectie
         if event == "sleep_tracking_stopped":
             self.is_tracking = False
             self.unix_stop = time.time()
@@ -121,7 +119,6 @@ class SleepTracker:
             self.current_phase_num = 0
             self.current_phase_text = "Standby"
         elif event in ["deep_sleep", "light_sleep", "rem_sleep"]:
-            # Leg tijd vast bij de allereerste echte slaapfase
             if self.fell_asleep_time_str in ["Nog niet", "Not yet"]:
                 self.fell_asleep_time_str = timestamp
             
@@ -145,11 +142,15 @@ class SleepTracker:
         self.last_event = event
 
 class SleepSensor(SensorEntity):
-    def __init__(self, tracker, device_name, s, lang, unique_dev_id):
-        self._tracker, self._id, self._lang = tracker, s["id"], lang
-        self._unique_dev_id = unique_dev_id
-        friendly_name = s["nl"] if lang == 'nl' else s["en"]
-        self._attr_name = f"{device_name} {friendly_name}"
+    def __init__(self, tracker, device_name, s, unique_dev_id):
+        self._tracker = tracker
+        self._id = s["id"]
+        self._device_display_name = device_name
+        
+        # Gebruik translation_key voor automatische vertaling via strings.json
+        self._attr_translation_key = s["key"]
+        self._attr_has_entity_name = True  # Zorgt dat de naam 'Apparaat Slaapfase' wordt
+        
         self._attr_unit_of_measurement = s.get("u")
         self._attr_icon = s["i"]
         self._attr_unique_id = f"sleep_custom_{unique_dev_id}_{s['id']}"
@@ -159,7 +160,8 @@ class SleepSensor(SensorEntity):
         self._extra_attrs = {}
 
     @property
-    def extra_state_attributes(self): return self._extra_attrs
+    def extra_state_attributes(self):
+        return self._extra_attrs
 
     @property
     def state(self):
@@ -182,12 +184,11 @@ class SleepSensor(SensorEntity):
         
         if self._id == "combined_duration":
             h, m = int(total_sec // 3600), int((total_sec % 3600) // 60)
-            attr_key = "weergave" if self._lang == 'nl' else "display"
-            self._extra_attrs = {attr_key: f"{h}u {m}m" if self._lang == 'nl' else f"{h}h {m}m"}
+            display_val = f"{h}u {m}m" if self._tracker.lang == 'nl' else f"{h}h {m}m"
+            self._extra_attrs = {"weergave": display_val}
             return round(total_sec / 3600, 2)
 
         if self._id == "efficiency":
-            # Efficiëntie berekend over de hele tijd vanaf start/pauze
             awake_t = self._tracker.totals.get("awake", 0)
             if self._tracker.is_tracking and self._tracker.current_phase_key == "awake":
                 awake_t += (time.time() - self._tracker.last_event_time)
@@ -195,7 +196,7 @@ class SleepSensor(SensorEntity):
             return round((sleep_t / total_sec) * 100, 1) if total_sec > 0 else 0
 
         if self._is_counter:
-            attr_key = "laatst_gedetecteerd" if self._lang == 'nl' else "last_detected"
+            attr_key = "laatst_gedetecteerd" if self._tracker.lang == 'nl' else "last_detected"
             self._extra_attrs = {attr_key: self._tracker.count_times.get(self._id)}
             return self._tracker.counts.get(self._id, 0)
         
@@ -205,8 +206,8 @@ class SleepSensor(SensorEntity):
                 phase_time += (time.time() - self._tracker.last_event_time)
             
             h, m = int(phase_time // 3600), int((phase_time % 3600) // 60)
-            attr_time = "tijd_weergave" if self._lang == 'nl' else "time_display"
-            self._extra_attrs = {attr_time: f"{h}u {m}m" if self._lang == 'nl' else f"{h}h {m}m"}
+            display_val = f"{h}u {m}m" if self._tracker.lang == 'nl' else f"{h}h {m}m"
+            self._extra_attrs = {"tijd_weergave": display_val}
             return round((phase_time / total_sec) * 100, 1) if total_sec > 0 else 0
 
         return None
@@ -214,6 +215,6 @@ class SleepSensor(SensorEntity):
     @property
     def device_info(self):
         return {
-            "identifiers": {(DOMAIN, self._unique_dev_id)},
+            "identifiers": {(DOMAIN, self._device_display_name)}, # Gebruik device_name als identifier
             "name": f"SleepAsAndroid MQTT Custom ({self._device_display_name})"
         }
