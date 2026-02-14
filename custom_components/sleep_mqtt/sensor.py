@@ -2,24 +2,27 @@ import json
 import logging
 import time
 from datetime import datetime
-from homeassistant.components.mqtt import async_subscribe
+
+from homeassistant.components import mqtt
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import UnitOfTime
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.config_entries import ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 DOMAIN = "sleep_mqtt"
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up sensors based on a config_entry."""
-    topic = config_entry.data['topic_prefix'].rstrip('/') + "/#"
-    device_name = config_entry.data['device_name']
-    unique_dev_id = config_entry.entry_id
+    topic = entry.data['topic_prefix'].rstrip('/') + "/#"
+    device_name = entry.data['device_name']
+    unique_dev_id = entry.entry_id
     
-    # We gebruiken de systeemtaal alleen nog voor de attributen in de tracker
+    # Bepaal taal voor interne logs/hardcoded strings
     sys_lang = hass.config.language if hasattr(hass.config, 'language') else 'en'
     lang = 'nl' if sys_lang == 'nl' else 'en'
     
-    # De 'name' is hier verwijderd, HA gebruikt de 'translation_key' i.c.m. strings.json
     sensor_list = [
         {"id": "event", "key": "event", "u": None, "i": "mdi:bed"},
         {"id": "sleep_phase", "key": "sleep_phase", "u": "fase", "i": "mdi:chart-timeline-variant", "sc": SensorStateClass.MEASUREMENT},
@@ -44,17 +47,20 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     async_add_entities(entities)
 
     async def global_msg_recv(msg):
+        """Handle incoming MQTT messages."""
         try:
             data = json.loads(msg.payload)
             event = data.get("event")
-            if not event: return
+            if not event:
+                return
             tracker.process_event(event)
             for entity in entities:
                 entity.async_write_ha_state()
         except Exception as e:
             _LOGGER.error("Error processing SleepAsAndroid MQTT message: %s", e)
 
-    await async_subscribe(hass, topic, global_msg_recv)
+    # Gebruik de aangeraden mqtt component subscribe
+    await mqtt.async_subscribe(hass, topic, global_msg_recv)
 
 class SleepTracker:
     def __init__(self, lang):
@@ -71,7 +77,7 @@ class SleepTracker:
         self.is_tracking = False
         self.fell_asleep_time_str = "Nog niet" if self.lang == 'nl' else "Not yet"
         self.totals = {"deep_sleep": 0, "light_sleep": 0, "rem_sleep": 0, "awake": 0}
-        self.counts = {k: 0 for k in ["sound_event_snore", "sound_event_talk", "sound_event_cough", "sound_event_laugh", "sound_event_yawn", "sound_event_sniff"]}
+        self.counts = {k: 0 for k in ["sound_event_snore", "sound_event_talk", "sound_event_cough"]}
         self.count_times = {k: ("Nog niet" if self.lang == 'nl' else "Not yet") for k in self.counts.keys()}
         self.last_event = "Geen data" if self.lang == 'nl' else "No data"
         self.start_time_str = "Niet gestart" if self.lang == 'nl' else "Not started"
@@ -147,9 +153,8 @@ class SleepSensor(SensorEntity):
         self._id = s["id"]
         self._device_display_name = device_name
         
-        # Gebruik translation_key voor automatische vertaling via strings.json
         self._attr_translation_key = s["key"]
-        self._attr_has_entity_name = True  # Zorgt dat de naam 'Apparaat Slaapfase' wordt
+        self._attr_has_entity_name = True
         
         self._attr_unit_of_measurement = s.get("u")
         self._attr_icon = s["i"]
@@ -164,7 +169,7 @@ class SleepSensor(SensorEntity):
         return self._extra_attrs
 
     @property
-    def state(self):
+    def native_value(self): # Gebruik native_value voor SensorEntity
         if self._id == "event": return self._tracker.last_event
         if self._id == "start_time_display": return self._tracker.start_time_str
         if self._id == "fell_asleep_time": return self._tracker.fell_asleep_time_str
@@ -215,6 +220,8 @@ class SleepSensor(SensorEntity):
     @property
     def device_info(self):
         return {
-            "identifiers": {(DOMAIN, self._device_display_name)}, # Gebruik device_name als identifier
-            "name": f"SleepAsAndroid MQTT Custom ({self._device_display_name})"
+            "identifiers": {(DOMAIN, self._attr_unique_id.split('_')[2])}, # Gebruik de entry_id voor groepering
+            "name": f"Custom SleepAsAndroid MQTT Sensors ({self._device_display_name})",
+            "manufacturer": "SleepAsAndroid",
+            "model": "MQTT Custom Tracker"
         }
