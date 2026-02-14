@@ -1,9 +1,9 @@
 {
-  "title": "SleepAsAndroid MQTT Custom",
+  "title": "Custom SleepAsAndroid MQTT Sensors",
   "config": {
     "step": {
       "user": {
-        "title": "Configure SleepAsAndroid MQTT",
+        "title": "Configure SleepAsAndroid MQTT sensors",
         "data": {
           "device_name": "Device Name",
           "topic_prefix": "MQTT Topic Prefix"
