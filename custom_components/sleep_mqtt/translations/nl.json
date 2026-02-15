@@ -38,9 +38,6 @@
       "talk": {
         "name": "Praten Duur"
       },
-      "noise": {
-        "name": "Omgevingsgeluid Duur"
-      },
       "last_update": {
         "name": "Laatste Update"
       }
