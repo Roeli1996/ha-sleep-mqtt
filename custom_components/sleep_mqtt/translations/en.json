@@ -4,31 +4,29 @@
     "step": {
       "user": {
         "title": "Custom SleepAsAndroid MQTT Sensors",
+        "description": "Configure the MQTT-connection for SleepAsAndroid.",
         "data": {
           "device_name": "Device Name",
-          "topic_prefix": "MQTT Topic Prefix"
+          "topic": "MQTT Topic (ex. SleepAsAndroid/test)"
         }
       }
     }
   },
   "entity": {
     "sensor": {
-      "event": { "name": "Status" },
       "sleep_phase": { "name": "Sleep Phase" },
+      "total_sleep": { "name": "Total Sleep" },
+      "efficiency": { "name": "Sleep Efficiency" },
+      "light_sleep": { "name": "Light Sleep Duration" },
+      "deep_sleep": { "name": "Deep Sleep Duration" },
+      "rem": { "name": "REM Sleep Duration" },
+      "awake": { "name": "Awake Duration" },
+      "snore": { "name": "Snoring Duration" },
+      "talk": { "name": "Talking Duration" },
       "start_time_display": { "name": "Start Time" },
       "fell_asleep_time": { "name": "Fell Asleep" },
       "stop_time_display": { "name": "End Time" },
-      "alarm_time_display": { "name": "Alarm Time" },
-      "combined_duration": { "name": "Sleep Duration" },
-      "efficiency": { "name": "Sleep Efficiency" },
-      "deep_sleep_percentage": { "name": "Deep Sleep" },
-      "light_sleep_percentage": { "name": "Light Sleep" },
-      "rem_sleep_percentage": { "name": "REM Sleep" },
-      "awake_percentage": { "name": "Awake" },
-      "sound_event_snore": { "name": "Snoring" },
-      "sound_event_talk": { "name": "Talking" },
-      "sound_event_cough": { "name": "Coughing" },
-      "last_sync": { "name": "Last Update" }
+      "alarm_time_display": { "name": "Alarm Time" }
     }
   }
 }
