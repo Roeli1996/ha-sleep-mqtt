@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/MAINTAINER-Roeli1996-blue.svg?style=for-the-badge)](https://github.com/Roeli1996)
-[![Version](https://img.shields.io/badge/VERSION-1.3.0-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
+[![Version](https://img.shields.io/badge/VERSION-1.3.1-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
 [![License](https://img.shields.io/badge/LICENSE-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 This custom integration brings advanced sleep tracking analytics from the **SleepAsAndroid** app directly into Home Assistant via MQTT. It features live statistics calculation, a **Real-time Hypnogram**, and full support for Long-Term Statistics.
@@ -35,6 +35,18 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 * **🌍 Official Translations:** Native support for English and Dutch via Home Assistant translation files.
 
 ---
+
+## Sensors Included
+| Sensor | Description |
+| :--- | :--- |
+| **Sleep Phase** | Current status (Light, Deep, REM, Awake) + Sound events. |
+| **Total Sleep** | Total duration of the current/last sleep session. |
+| **Deep Sleep Duration** | Cumulative minutes of deep sleep. |
+| **Light Sleep Duration** | Cumulative minutes of light sleep. |
+| **REM Sleep Duration** | Cumulative minutes of REM sleep. |
+| **Awake Duration** | Time spent awake during the session. |
+| **Snoring Duration** | Total time snoring was detected. |
+| **Talking Duration** | Total time talking was detected. |
 
 ## 🚀 Installation
 
@@ -82,6 +94,18 @@ series:
 # Changelog
 
 All notable changes to the **SleepAsAndroid MQTT Custom** integration will be documented in this file.
+
+## [1.3.1] - 2026-02-15
+### Added
+- **Full REM Sleep Support:** Dedicated tracking for REM sleep stages.
+- **Sound Event Tracking:** New sensors for **Snoring** and **Talking** durations (in minutes).
+- **Percentage Analysis:** Added `percentage_of_total` attributes to all duration sensors for deeper analysis.
+- **Long-Term Statistics:** Support for `total_increasing` state classes, enabling native Home Assistant history graphs and LTS.
+
+### Changed
+- **Intelligent Phase Tracking:** The main "Sleep Phase" sensor now features "memory," retaining the current sleep stage during sound events (e.g., `Deep Sleep (Snoring)`).
+- **Cleanup:** Removed unused ambient noise detection sensors to prevent entity clutter.
+- **Translation Update:** Fully updated Dutch (`nl.json`) and English (`strings.json`) localization.
 
 ## [1.3.0] - 2026-02-14
 ### Added
