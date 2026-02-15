@@ -14,6 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up SleepAsAndroid MQTT sensors."""
     topic = config_entry.data.get("topic", "SleepAsAndroid/test")
+    device_name = config_entry.data.get("device_name", "SleepAsAndroid")
     
     entities = []
 
@@ -27,11 +28,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         {"id": "talk", "name": "Talking Duration", "icon": "mdi:comment-text-outline"},
     ]
     for stat in stats_config:
-        entities.append(SleepAsAndroidDurationSensor(hass, config_entry, stat, topic))
+        entities.append(SleepAsAndroidDurationSensor(hass, config_entry, stat, topic, device_name))
 
     # 2. Totaal en Efficiëntie
-    entities.append(SleepAsAndroidTotalSleepSensor(hass, config_entry, topic))
-    entities.append(SleepAsAndroidEfficiencySensor(hass, config_entry, topic))
+    entities.append(SleepAsAndroidTotalSleepSensor(hass, config_entry, topic, device_name))
+    entities.append(SleepAsAndroidEfficiencySensor(hass, config_entry, topic, device_name))
     
     # 3. Tijdstip Sensoren
     time_sensors = [
@@ -41,20 +42,36 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         {"id": "alarm_time_display", "name": "Alarm Time", "icon": "mdi:alarm"},
     ]
     for ts in time_sensors:
-        entities.append(SleepAsAndroidTimeSensor(hass, config_entry, ts, topic))
+        entities.append(SleepAsAndroidTimeSensor(hass, config_entry, ts, topic, device_name))
     
     # 4. Fase Sensor (Tekstueel)
-    entities.append(SleepAsAndroidPhaseSensor(hass, config_entry, topic))
+    entities.append(SleepAsAndroidPhaseSensor(hass, config_entry, topic, device_name))
     
     async_add_entities(entities)
 
-class SleepAsAndroidDurationSensor(SensorEntity):
-    """Duur sensor met percentage als extra attribuut."""
-    def __init__(self, hass, config_entry, stat, topic):
-        self._stat_id = stat["id"]
-        self._attr_name = f"SleepAsAndroid {stat['name']}"
-        self._attr_unique_id = f"{config_entry.entry_id}_{stat['id']}"
+class SleepAsAndroidBaseSensor(SensorEntity):
+    """Base class voor gedeelde functionaliteit."""
+    def __init__(self, config_entry, topic, device_name):
         self._topic = topic
+        self._device_name = device_name
+        self._entry_id = config_entry.entry_id
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("sleep_mqtt", self._topic)},
+            "name": self._device_name,
+            "manufacturer": "Urbandroid",
+            "model": "SleepAsAndroid Custom",
+        }
+
+class SleepAsAndroidDurationSensor(SleepAsAndroidBaseSensor):
+    """Duur sensor met percentage als extra attribuut."""
+    def __init__(self, hass, config_entry, stat, topic, device_name):
+        super().__init__(config_entry, topic, device_name)
+        self._stat_id = stat["id"]
+        self._attr_name = f"{device_name} {stat['name']}"
+        self._attr_unique_id = f"{self._entry_id}_{topic}_{stat['id']}"
         self._state = 0.0
         self._total_time = 0.0
         self._attr_icon = stat["icon"]
@@ -84,17 +101,13 @@ class SleepAsAndroidDurationSensor(SensorEntity):
             pct = round((self._state / self._total_time) * 100, 1)
         return {"percentage_of_total": f"{pct}%"}
 
-    @property
-    def device_info(self):
-        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
-
-class SleepAsAndroidTimeSensor(SensorEntity):
+class SleepAsAndroidTimeSensor(SleepAsAndroidBaseSensor):
     """Sensor voor start/stop tijden."""
-    def __init__(self, hass, config_entry, ts, topic):
+    def __init__(self, hass, config_entry, ts, topic, device_name):
+        super().__init__(config_entry, topic, device_name)
         self._ts_id = ts["id"]
-        self._attr_name = f"SleepAsAndroid {ts['name']}"
-        self._attr_unique_id = f"{config_entry.entry_id}_{ts['id']}"
-        self._topic = topic
+        self._attr_name = f"{device_name} {ts['name']}"
+        self._attr_unique_id = f"{self._entry_id}_{topic}_{ts['id']}"
         self._state = "Unknown"
         self._attr_icon = ts["icon"]
 
@@ -112,16 +125,12 @@ class SleepAsAndroidTimeSensor(SensorEntity):
     @property
     def native_value(self): return self._state
 
-    @property
-    def device_info(self):
-        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
-
-class SleepAsAndroidEfficiencySensor(SensorEntity):
+class SleepAsAndroidEfficiencySensor(SleepAsAndroidBaseSensor):
     """Sensor voor slaap efficiëntie percentage."""
-    def __init__(self, hass, config_entry, topic):
-        self._attr_name = "SleepAsAndroid Efficiency"
-        self._attr_unique_id = f"{config_entry.entry_id}_efficiency"
-        self._topic = topic
+    def __init__(self, hass, config_entry, topic, device_name):
+        super().__init__(config_entry, topic, device_name)
+        self._attr_name = f"{device_name} Efficiency"
+        self._attr_unique_id = f"{self._entry_id}_{topic}_efficiency"
         self._state = 0.0
         self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_icon = "mdi:chart-donut"
@@ -140,16 +149,12 @@ class SleepAsAndroidEfficiencySensor(SensorEntity):
     @property
     def native_value(self): return self._state
 
-    @property
-    def device_info(self):
-        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
-
-class SleepAsAndroidTotalSleepSensor(SensorEntity):
+class SleepAsAndroidTotalSleepSensor(SleepAsAndroidBaseSensor):
     """Sensor voor totale duur."""
-    def __init__(self, hass, config_entry, topic):
-        self._attr_name = "SleepAsAndroid Total Sleep"
-        self._attr_unique_id = f"{config_entry.entry_id}_total_sleep"
-        self._topic = topic
+    def __init__(self, hass, config_entry, topic, device_name):
+        super().__init__(config_entry, topic, device_name)
+        self._attr_name = f"{device_name} Total Sleep"
+        self._attr_unique_id = f"{self._entry_id}_{topic}_total_sleep"
         self._state = 0.0
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_device_class = SensorDeviceClass.DURATION
@@ -169,16 +174,12 @@ class SleepAsAndroidTotalSleepSensor(SensorEntity):
     @property
     def native_value(self): return self._state
 
-    @property
-    def device_info(self):
-        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
-
-class SleepAsAndroidPhaseSensor(SensorEntity):
+class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
     """Sensor voor huidige fase met geheugen."""
-    def __init__(self, hass, config_entry, topic):
-        self._attr_name = "SleepAsAndroid Sleep Phase"
-        self._attr_unique_id = f"{config_entry.entry_id}_sleep_phase"
-        self._topic = topic
+    def __init__(self, hass, config_entry, topic, device_name):
+        super().__init__(config_entry, topic, device_name)
+        self._attr_name = f"{device_name} Sleep Phase"
+        self._attr_unique_id = f"{self._entry_id}_{topic}_sleep_phase"
         self._state = "Unknown"
         self._last_phase = "Unknown"
         self._attr_icon = "mdi:bed"
@@ -209,7 +210,3 @@ class SleepAsAndroidPhaseSensor(SensorEntity):
 
     @property
     def native_value(self): return self._state
-
-    @property
-    def device_info(self):
-        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
