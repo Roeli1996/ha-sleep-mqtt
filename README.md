@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/MAINTAINER-Roeli1996-blue.svg?style=for-the-badge)](https://github.com/Roeli1996)
-[![Version](https://img.shields.io/badge/VERSION-1.3.2-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
+[![Version](https://img.shields.io/badge/VERSION-1.3.3-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
 [![License](https://img.shields.io/badge/LICENSE-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 This custom integration brings advanced sleep tracking analytics from the **SleepAsAndroid** app directly into Home Assistant via MQTT. It features live statistics calculation, a **Real-time Hypnogram**, and full support for Long-Term Statistics.
@@ -124,7 +124,7 @@ series:
 
 All notable changes to the **SleepAsAndroid MQTT Custom** integration will be documented in this file.
 
-## [1.3.2] - 2026-02-15
+## [1.3.2] and [1.3.3] - 2026-02-15
 ### changed
 - **Fix:** multi-user has been fixed. 
 
