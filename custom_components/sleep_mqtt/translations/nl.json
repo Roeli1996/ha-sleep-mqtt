@@ -14,33 +14,19 @@
   },
   "entity": {
     "sensor": {
-      "sleep_phase": {
-        "name": "Slaapfase"
-      },
-      "total_sleep": {
-        "name": "Totale Slaapduur"
-      },
-      "light_sleep": {
-        "name": "Lichte Slaap Duur"
-      },
-      "deep_sleep": {
-        "name": "Diepe Slaap Duur"
-      },
-      "rem": {
-        "name": "REM Slaap Duur"
-      },
-      "awake": {
-        "name": "Wakker Duur"
-      },
-      "snore": {
-        "name": "Snurken Duur"
-      },
-      "talk": {
-        "name": "Praten Duur"
-      },
-      "last_update": {
-        "name": "Laatste Update"
-      }
+      "sleep_phase": { "name": "Slaapfase" },
+      "total_sleep": { "name": "Totale Slaapduur" },
+      "efficiency": { "name": "Slaap Efficiëntie" },
+      "light_sleep": { "name": "Lichte Slaap Duur" },
+      "deep_sleep": { "name": "Diepe Slaap Duur" },
+      "rem": { "name": "REM Slaap Duur" },
+      "awake": { "name": "Wakker Duur" },
+      "snore": { "name": "Snurken Duur" },
+      "talk": { "name": "Praten Duur" },
+      "start_time_display": { "name": "Starttijd" },
+      "fell_asleep_time": { "name": "In slaap gevallen" },
+      "stop_time_display": { "name": "Eindtijd" },
+      "alarm_time_display": { "name": "Wekker Tijd" }
     }
   }
 }
