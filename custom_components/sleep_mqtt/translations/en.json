@@ -14,36 +14,15 @@
   },
   "entity": {
     "sensor": {
-      "sleep_phase": {
-        "name": "Sleep Phase"
-      },
-      "total_sleep": {
-        "name": "Total Sleep"
-      },
-      "light_sleep": {
-        "name": "Light Sleep Duration"
-      },
-      "deep_sleep": {
-        "name": "Deep Sleep Duration"
-      },
-      "rem": {
-        "name": "REM Sleep Duration"
-      },
-      "awake": {
-        "name": "Awake Duration"
-      },
-      "snore": {
-        "name": "Snoring Duration"
-      },
-      "talk": {
-        "name": "Talking Duration"
-      },
-      "noise": {
-        "name": "Noise Duration"
-      },
-      "last_update": {
-        "name": "Last Update"
-      }
+      "sleep_phase": { "name": "Sleep Phase" },
+      "total_sleep": { "name": "Total Sleep" },
+      "light_sleep": { "name": "Light Sleep Duration" },
+      "deep_sleep": { "name": "Deep Sleep Duration" },
+      "rem": { "name": "REM Sleep Duration" },
+      "awake": { "name": "Awake Duration" },
+      "snore": { "name": "Snoring Duration" },
+      "talk": { "name": "Talking Duration" },
+      "last_update": { "name": "Last Update" }
     }
   }
 }
