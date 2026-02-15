@@ -12,10 +12,10 @@ from homeassistant.components.mqtt import async_subscribe
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up SleepAsAndroid MQTT sensors from config entry."""
+    """Set up SleepAsAndroid MQTT sensors."""
     topic = config_entry.data.get("topic", "SleepAsAndroid/test")
     
-    # Configuratie van alle duur-sensoren
+    # Configuratie van duur-sensoren (Zonder Noise)
     stats_config = [
         {"id": "light_sleep", "name": "Light Sleep", "icon": "mdi:sleep"},
         {"id": "deep_sleep", "name": "Deep Sleep", "icon": "mdi:sleep-circle"},
@@ -23,15 +23,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         {"id": "awake", "name": "Awake", "icon": "mdi:weather-sunny"},
         {"id": "snore", "name": "Snoring Duration", "icon": "mdi:account-voice"},
         {"id": "talk", "name": "Talking Duration", "icon": "mdi:comment-text-outline"},
-        {"id": "noise", "name": "Noise Duration", "icon": "mdi:waveform"},
     ]
     
     entities = [SleepAsAndroidDurationSensor(hass, config_entry, stat, topic) for stat in stats_config]
-    
-    # Voeg de totale slaapduur sensor toe
     entities.append(SleepAsAndroidTotalSleepSensor(hass, config_entry, topic))
-    
-    # Voeg de hoofd-fase sensor toe (tekstueel met geheugen voor snurken)
     entities.append(SleepAsAndroidPhaseSensor(hass, config_entry, topic))
     
     async_add_entities(entities)
@@ -56,9 +51,7 @@ class SleepAsAndroidDurationSensor(SensorEntity):
         def message_received(msg):
             try:
                 data = json.loads(msg.payload)
-                # Update totaal voor percentage berekening
                 self._total_time = float(data.get("total", 0.0))
-                
                 if self._stat_id in data:
                     self._state = float(data[self._stat_id])
                     self.async_write_ha_state()
@@ -72,7 +65,6 @@ class SleepAsAndroidDurationSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Voegt het percentage toe aan de attributen."""
         pct = 0.0
         if self._total_time > 0:
             pct = round((self._state / self._total_time) * 100, 1)
@@ -80,11 +72,7 @@ class SleepAsAndroidDurationSensor(SensorEntity):
 
     @property
     def device_info(self):
-        return {
-            "identifiers": {("sleep_mqtt", self._topic)},
-            "name": "SleepAsAndroid MQTT Custom",
-            "manufacturer": "Urbandroid",
-        }
+        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
 
 class SleepAsAndroidTotalSleepSensor(SensorEntity):
     """Sensor voor de totale slaapduur."""
@@ -137,35 +125,22 @@ class SleepAsAndroidPhaseSensor(SensorEntity):
                 data = json.loads(msg.payload)
                 event = data.get("event", "").lower()
                 
-                # Slaapfase detectie
                 new_p = None
-                if "rem" in event: 
-                    new_p = "REM"
-                    self._attr_icon = "mdi:moon-waning-crescent"
-                elif "deep" in event: 
-                    new_p = "Deep Sleep"
-                    self._attr_icon = "mdi:sleep-circle"
-                elif "light" in event: 
-                    new_p = "Light Sleep"
-                    self._attr_icon = "mdi:sleep"
-                elif "awake" in event: 
-                    new_p = "Awake"
-                    self._attr_icon = "mdi:weather-sunny"
+                if "rem" in event: new_p = "REM"
+                elif "deep" in event: new_p = "Deep Sleep"
+                elif "light" in event: new_p = "Light Sleep"
+                elif "awake" in event: new_p = "Awake"
 
                 if new_p:
                     self._last_phase = new_p
                     self._state = new_p
 
-                # Geluid overlays (overschrijft state tekst, maar niet de last_phase)
                 if "snore" in event:
                     self._state = f"{self._last_phase} (Snoring)"
                     self._attr_icon = "mdi:account-voice"
                 elif "talk" in event:
                     self._state = f"{self._last_phase} (Talking)"
                     self._attr_icon = "mdi:comment-text-outline"
-                elif "noise" in event:
-                    self._state = f"{self._last_phase} (Noise)"
-                    self._attr_icon = "mdi:waveform"
 
                 self.async_write_ha_state()
             except (json.JSONDecodeError, ValueError):
