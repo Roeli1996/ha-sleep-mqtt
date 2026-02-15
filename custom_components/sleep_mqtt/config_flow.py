@@ -15,13 +15,19 @@ class SleepAsAndroidMQTTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            # Optioneel: Maak een uniek ID op basis van het topic_prefix
-            await self.async_set_unique_id(user_input["topic_prefix"])
+            # We maken een uniek ID op basis van het topic. 
+            # Dit zorgt ervoor dat je niet twee keer exact hetzelfde topic kunt toevoegen,
+            # maar wel verschillende personen (verschillende topics).
+            unique_id = f"{DOMAIN}_{user_input['topic']}"
+            await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
 
             return self.async_create_entry(
-                title=f"SleepAsAndroid ({user_input['device_name']})", 
-                data=user_input
+                title=user_input["device_name"], 
+                data={
+                    "device_name": user_input["device_name"],
+                    "topic": user_input["topic"]
+                }
             )
 
         # Het formulier dat de gebruiker te zien krijgt
@@ -29,7 +35,7 @@ class SleepAsAndroidMQTTConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({
                 vol.Required("device_name", default="Arne"): str,
-                vol.Required("topic_prefix", default="SleepAsAndroid/Arne"): str,
+                vol.Required("topic", default="SleepAsAndroid/Arne"): str,
             }),
             errors=errors,
         )
