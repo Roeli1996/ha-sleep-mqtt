@@ -5,7 +5,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTime
+from homeassistant.const import UnitOfTime, PERCENTAGE
 from homeassistant.core import callback
 from homeassistant.components.mqtt import async_subscribe
 
@@ -15,25 +15,41 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up SleepAsAndroid MQTT sensors."""
     topic = config_entry.data.get("topic", "SleepAsAndroid/test")
     
-    # Configuratie van duur-sensoren (Zonder Noise)
+    entities = []
+
+    # 1. Duur Sensoren (Minuten + Percentage attribuut)
     stats_config = [
-        {"id": "light_sleep", "name": "Light Sleep", "icon": "mdi:sleep"},
-        {"id": "deep_sleep", "name": "Deep Sleep", "icon": "mdi:sleep-circle"},
-        {"id": "rem", "name": "REM Sleep", "icon": "mdi:moon-waning-crescent"},
-        {"id": "awake", "name": "Awake", "icon": "mdi:weather-sunny"},
+        {"id": "light_sleep", "name": "Light Sleep Duration", "icon": "mdi:sleep"},
+        {"id": "deep_sleep", "name": "Deep Sleep Duration", "icon": "mdi:sleep-circle"},
+        {"id": "rem", "name": "REM Sleep Duration", "icon": "mdi:moon-waning-crescent"},
+        {"id": "awake", "name": "Awake Duration", "icon": "mdi:weather-sunny"},
         {"id": "snore", "name": "Snoring Duration", "icon": "mdi:account-voice"},
         {"id": "talk", "name": "Talking Duration", "icon": "mdi:comment-text-outline"},
     ]
-    
-    entities = [SleepAsAndroidDurationSensor(hass, config_entry, stat, topic) for stat in stats_config]
+    for stat in stats_config:
+        entities.append(SleepAsAndroidDurationSensor(hass, config_entry, stat, topic))
+
+    # 2. Totaal en Efficiëntie
     entities.append(SleepAsAndroidTotalSleepSensor(hass, config_entry, topic))
+    entities.append(SleepAsAndroidEfficiencySensor(hass, config_entry, topic))
+    
+    # 3. Tijdstip Sensoren
+    time_sensors = [
+        {"id": "start_time_display", "name": "Start Time", "icon": "mdi:clock-start"},
+        {"id": "fell_asleep_time", "name": "Fell Asleep", "icon": "mdi:bed-clock"},
+        {"id": "stop_time_display", "name": "End Time", "icon": "mdi:clock-end"},
+        {"id": "alarm_time_display", "name": "Alarm Time", "icon": "mdi:alarm"},
+    ]
+    for ts in time_sensors:
+        entities.append(SleepAsAndroidTimeSensor(hass, config_entry, ts, topic))
+    
+    # 4. Fase Sensor (Tekstueel)
     entities.append(SleepAsAndroidPhaseSensor(hass, config_entry, topic))
     
     async_add_entities(entities)
 
 class SleepAsAndroidDurationSensor(SensorEntity):
-    """Sensor voor duur per fase/geluid met percentage-attribuut."""
-
+    """Duur sensor met percentage als extra attribuut."""
     def __init__(self, hass, config_entry, stat, topic):
         self._stat_id = stat["id"]
         self._attr_name = f"SleepAsAndroid {stat['name']}"
@@ -55,13 +71,11 @@ class SleepAsAndroidDurationSensor(SensorEntity):
                 if self._stat_id in data:
                     self._state = float(data[self._stat_id])
                     self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError): pass
         await async_subscribe(self.hass, self._topic, message_received)
 
     @property
-    def native_value(self):
-        return self._state
+    def native_value(self): return self._state
 
     @property
     def extra_state_attributes(self):
@@ -74,15 +88,69 @@ class SleepAsAndroidDurationSensor(SensorEntity):
     def device_info(self):
         return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
 
-class SleepAsAndroidTotalSleepSensor(SensorEntity):
-    """Sensor voor de totale slaapduur."""
+class SleepAsAndroidTimeSensor(SensorEntity):
+    """Sensor voor start/stop tijden."""
+    def __init__(self, hass, config_entry, ts, topic):
+        self._ts_id = ts["id"]
+        self._attr_name = f"SleepAsAndroid {ts['name']}"
+        self._attr_unique_id = f"{config_entry.entry_id}_{ts['id']}"
+        self._topic = topic
+        self._state = "Unknown"
+        self._attr_icon = ts["icon"]
 
+    async def async_added_to_hass(self):
+        @callback
+        def message_received(msg):
+            try:
+                data = json.loads(msg.payload)
+                if self._ts_id in data:
+                    self._state = str(data[self._ts_id])
+                    self.async_write_ha_state()
+            except (json.JSONDecodeError, ValueError): pass
+        await async_subscribe(self.hass, self._topic, message_received)
+
+    @property
+    def native_value(self): return self._state
+
+    @property
+    def device_info(self):
+        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
+
+class SleepAsAndroidEfficiencySensor(SensorEntity):
+    """Sensor voor slaap efficiëntie percentage."""
+    def __init__(self, hass, config_entry, topic):
+        self._attr_name = "SleepAsAndroid Efficiency"
+        self._attr_unique_id = f"{config_entry.entry_id}_efficiency"
+        self._topic = topic
+        self._state = 0.0
+        self._attr_native_unit_of_measurement = PERCENTAGE
+        self._attr_icon = "mdi:chart-donut"
+
+    async def async_added_to_hass(self):
+        @callback
+        def message_received(msg):
+            try:
+                data = json.loads(msg.payload)
+                if "efficiency" in data:
+                    self._state = float(data["efficiency"]) * 100
+                    self.async_write_ha_state()
+            except (json.JSONDecodeError, ValueError): pass
+        await async_subscribe(self.hass, self._topic, message_received)
+
+    @property
+    def native_value(self): return self._state
+
+    @property
+    def device_info(self):
+        return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
+
+class SleepAsAndroidTotalSleepSensor(SensorEntity):
+    """Sensor voor totale duur."""
     def __init__(self, hass, config_entry, topic):
         self._attr_name = "SleepAsAndroid Total Sleep"
         self._attr_unique_id = f"{config_entry.entry_id}_total_sleep"
         self._topic = topic
         self._state = 0.0
-        self._attr_icon = "mdi:timer-outline"
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -95,21 +163,18 @@ class SleepAsAndroidTotalSleepSensor(SensorEntity):
                 if "total" in data:
                     self._state = float(data["total"])
                     self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError): pass
         await async_subscribe(self.hass, self._topic, message_received)
 
     @property
-    def native_value(self):
-        return self._state
+    def native_value(self): return self._state
 
     @property
     def device_info(self):
         return {"identifiers": {("sleep_mqtt", self._topic)}, "name": "SleepAsAndroid MQTT Custom"}
 
 class SleepAsAndroidPhaseSensor(SensorEntity):
-    """Tekst-sensor die de fase onthoudt tijdens geluidsevents."""
-
+    """Sensor voor huidige fase met geheugen."""
     def __init__(self, hass, config_entry, topic):
         self._attr_name = "SleepAsAndroid Sleep Phase"
         self._attr_unique_id = f"{config_entry.entry_id}_sleep_phase"
@@ -124,32 +189,26 @@ class SleepAsAndroidPhaseSensor(SensorEntity):
             try:
                 data = json.loads(msg.payload)
                 event = data.get("event", "").lower()
-                
                 new_p = None
                 if "rem" in event: new_p = "REM"
                 elif "deep" in event: new_p = "Deep Sleep"
                 elif "light" in event: new_p = "Light Sleep"
                 elif "awake" in event: new_p = "Awake"
-
                 if new_p:
                     self._last_phase = new_p
                     self._state = new_p
-
                 if "snore" in event:
                     self._state = f"{self._last_phase} (Snoring)"
                     self._attr_icon = "mdi:account-voice"
                 elif "talk" in event:
                     self._state = f"{self._last_phase} (Talking)"
                     self._attr_icon = "mdi:comment-text-outline"
-
                 self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError): pass
         await async_subscribe(self.hass, self._topic, message_received)
 
     @property
-    def native_value(self):
-        return self._state
+    def native_value(self): return self._state
 
     @property
     def device_info(self):
