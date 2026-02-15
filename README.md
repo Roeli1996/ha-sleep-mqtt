@@ -37,16 +37,37 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 ---
 
 ## Sensors Included
+
+### Sleep Analysis & Stages
+| Sensor | Description | Attributes |
+| :--- | :--- | :--- |
+| **Sleep Phase** | Current stage (Light, Deep, REM, Awake) + Sound events. | `last_phase` |
+| **Sleep Efficiency** | Overall sleep quality score in percentage. | - |
+| **Total Sleep** | Total duration of the sleep session. | - |
+| **Deep Sleep Duration** | Cumulative minutes of deep sleep. | `percentage_of_total` |
+| **Light Sleep Duration** | Cumulative minutes of light sleep. | `percentage_of_total` |
+| **REM Sleep Duration** | Cumulative minutes of REM sleep. | `percentage_of_total` |
+| **Awake Duration** | Time spent awake during the session. | `percentage_of_total` |
+
+### Sound Tracking
+| Sensor | Description | Attributes |
+| :--- | :--- | :--- |
+| **Snoring Duration** | Total time snoring was detected. | `percentage_of_total` |
+| **Talking Duration** | Total time talking was detected. | `percentage_of_total` |
+
+### Timing & Alarm
 | Sensor | Description |
 | :--- | :--- |
-| **Sleep Phase** | Current status (Light, Deep, REM, Awake) + Sound events. |
-| **Total Sleep** | Total duration of the current/last sleep session. |
-| **Deep Sleep Duration** | Cumulative minutes of deep sleep. |
-| **Light Sleep Duration** | Cumulative minutes of light sleep. |
-| **REM Sleep Duration** | Cumulative minutes of REM sleep. |
-| **Awake Duration** | Time spent awake during the session. |
-| **Snoring Duration** | Total time snoring was detected. |
-| **Talking Duration** | Total time talking was detected. |
+| **Start Time** | The exact time tracking was started. |
+| **Fell Asleep** | Estimated time when you actually fell asleep. |
+| **End Time** | The time tracking was stopped. |
+| **Alarm Time** | The time the alarm was set to go off. |
+
+## Data Attributes
+In version 1.3.1, all **Duration** sensors include an extra attribute:
+- **`percentage_of_total`**: This calculates on-the-fly what percentage of your total sleep was spent in that specific phase or doing that specific activity (snoring/talking). This is perfect for custom Gauge cards in your dashboard.
+
+---
 
 ## 🚀 Installation
 
@@ -63,6 +84,12 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 3. **Enable MQTT** and set your Host/IP (your Home Assistant MQTT broker).
 4. **Topic prefix:** e.g., `SleepAsAndroid/Arne`.
 5. **Important:** Ensure **Events** is checked in the MQTT settings to enable real-time updates.
+
+## How it works
+The integration listens to the JSON payload sent by SleepAsAndroid via MQTT. 
+- **Phases & Times:** When a payload is received, all timing and duration sensors are updated instantly.
+- **Events:** When a sound event occurs, the `Sleep Phase` sensor updates its state to reflect the event while keeping the last known sleep stage in the text.
+- **Attributes:** Percentages for each phase are calculated on-the-fly and stored as attributes: `(phase_duration / total_sleep) * 100`.
 
 ---
 
@@ -91,6 +118,8 @@ series:
     name: Awake
     color: "#FFAB91"
 ```
+---
+
 # Changelog
 
 All notable changes to the **SleepAsAndroid MQTT Custom** integration will be documented in this file.
@@ -99,7 +128,9 @@ All notable changes to the **SleepAsAndroid MQTT Custom** integration will be do
 ### Added
 - **Full REM Sleep Support:** Dedicated tracking for REM sleep stages.
 - **Sound Event Tracking:** New sensors for **Snoring** and **Talking** durations (in minutes).
-- **Percentage Analysis:** Added `percentage_of_total` attributes to all duration sensors for deeper analysis.
+- **Time Analysis:** Restored sensors for **Start Time**, **Fell Asleep**, **End Time**, and **Alarm Time**.
+- **Sleep Efficiency:** Added a dedicated sensor for sleep efficiency percentage.
+- **Percentage Analysis:** Added `percentage_of_total` attributes to all duration sensors.
 - **Long-Term Statistics:** Support for `total_increasing` state classes, enabling native Home Assistant history graphs and LTS.
 
 ### Changed
