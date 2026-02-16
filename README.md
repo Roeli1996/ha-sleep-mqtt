@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/MAINTAINER-Roeli1996-blue.svg?style=for-the-badge)](https://github.com/Roeli1996)
-[![Version](https://img.shields.io/badge/VERSION-1.3.3-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
+[![Version](https://img.shields.io/badge/VERSION-1.4.0-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
 [![License](https://img.shields.io/badge/LICENSE-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 This custom integration brings advanced sleep tracking analytics from the **SleepAsAndroid** app directly into Home Assistant via MQTT. It features live statistics calculation, a **Real-time Hypnogram**, and full support for Long-Term Statistics.
@@ -26,45 +26,57 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 
 ## ✨ Features
 
-* **📊 Live Hypnogram (Numerical):** `Sleep Phase` sensor using integers (0-3) for instant compatibility with **ApexCharts**.
-* **💤 Fell Asleep Tracking:** Records the exact timestamp when you actually transition from "Awake" into sleep.
-* **🔄 Precise Calculations:** Real-time sleep duration and phase percentages using decimal values for accurate graphing.
-* **📈 Long-term Statistics:** Full support for HA Long-Term Statistics (LTS) with `measurement` state classes.
-* **🔊 Sound Event Counters:** Tracks snoring, talking, coughing, laughing, and yawning.
-* **⏰ Smart Start & Pause:** Correctly handles "Delayed Start" and "Paused" states to ensure your tracking starts the moment you hit the bed.
-* **🌍 Official Translations:** Native support for English and Dutch via Home Assistant translation files.
+* **Real-time Tracking:** Calculates sleep phases (Light, Deep, REM, Awake) and durations second-by-second.
+* **Self-Calculated Efficiency:** Local calculation of sleep efficiency based on actual sleep time vs. total time in bed.
+* **Multi-User Support:** Easily add multiple devices/users with unique MQTT topics and custom names.
+* **Sound Event Counters:** Tracks snoring, talking, coughing, laughing, and shouting with a "last seen" timestamp for each.
+* **Smart Status:** The Sleep Phase sensor automatically switches to "Uitgeschakeld" (Disabled) when tracking stops.
+* **Alarm Integration:** Captures the exact timestamp of your last alarm event.
+* **Fully Local:** All calculations happen on your Home Assistant instance via MQTT.
 
 ---
 
 ## Sensors Included
 
-### Sleep Analysis & Stages
-| Sensor | Description | Attributes |
-| :--- | :--- | :--- |
-| **Sleep Phase** | Current stage (Light, Deep, REM, Awake) + Sound events. | `last_phase` |
-| **Sleep Efficiency** | Overall sleep quality score in percentage. | - |
-| **Total Sleep** | Total duration of the sleep session. | - |
-| **Deep Sleep Duration** | Cumulative minutes of deep sleep. | `percentage_of_total` |
-| **Light Sleep Duration** | Cumulative minutes of light sleep. | `percentage_of_total` |
-| **REM Sleep Duration** | Cumulative minutes of REM sleep. | `percentage_of_total` |
-| **Awake Duration** | Time spent awake during the session. | `percentage_of_total` |
-
-### Sound Tracking
-| Sensor | Description | Attributes |
-| :--- | :--- | :--- |
-| **Snoring Duration** | Total time snoring was detected. | `percentage_of_total` |
-| **Talking Duration** | Total time talking was detected. | `percentage_of_total` |
-
-### Timing & Alarm
-| Sensor | Description |
+### Sleep Tracking & Phases
+| Entity | Description |
 | :--- | :--- |
-| **Start Time** | The exact time tracking was started. |
-| **Fell Asleep** | Estimated time when you actually fell asleep. |
-| **End Time** | The time tracking was stopped. |
-| **Alarm Time** | The time the alarm was set to go off. |
+| **Sleep Phase** | The current state of sleep (Light Sleep, Deep Sleep, REM, Awake). Shows "Uitgeschakeld" (Disabled) when not tracking. |
+| **Sleep Efficiency** | Real-time percentage of actual sleep vs. total time in bed. |
+| **Total Sleep Duration** | Cumulative minutes spent in Light, Deep, and REM sleep combined. |
+
+### Phase Durations (Minutes)
+| Entity | Description |
+| :--- | :--- |
+| **Light Sleep Duration** | Total minutes spent in the Light Sleep phase tonight. |
+| **Deep Sleep Duration** | Total minutes spent in the Deep Sleep phase tonight. |
+| **REM Sleep Duration** | Total minutes spent in the REM Sleep phase tonight. |
+| **Awake Duration** | Total minutes spent awake during the tracking session. |
+
+### Timestamps
+| Entity | Description |
+| :--- | :--- |
+| **Start Time** | Exact time when the "Start Tracking" button was pressed. |
+| **Fell Asleep** | The timestamp of the first detected sleep phase (Non-Awake). |
+| **End Time** | Exact time when tracking was stopped. |
+| **Alarm Time** | The timestamp of the last triggered alarm event. |
+
+### Sound & Event Counters
+| Entity | Description |
+| :--- | :--- |
+| **Snoring Count** | Number of times snoring was detected. Includes `last_seen` attribute. |
+| **Talking Count** | Number of times talking was detected. Includes `last_seen` attribute. |
+| **Coughing Count** | Number of times coughing was detected. Includes `last_seen` attribute. |
+| **Laughing Count** | Number of times laughing was detected. Includes `last_seen` attribute. |
+| **Shouting Count** | Number of times shouting was detected. Includes `last_seen` attribute. |
+
+### Debugging
+| Entity | Description |
+| :--- | :--- |
+| **Last MQTT Message** | Displays the raw JSON payload of the last received MQTT message. |
 
 ## Data Attributes
-In version 1.3.1, all **Duration** sensors include an extra attribute:
+In version 1.4.0, all **Duration** sensors include an extra attribute:
 - **`percentage_of_total`**: This calculates on-the-fly what percentage of your total sleep was spent in that specific phase or doing that specific activity (snoring/talking). This is perfect for custom Gauge cards in your dashboard.
 
 ---
@@ -86,10 +98,12 @@ In version 1.3.1, all **Duration** sensors include an extra attribute:
 5. **Important:** Ensure **Events** is checked in the MQTT settings to enable real-time updates.
 
 ## How it works
-The integration listens to the JSON payload sent by SleepAsAndroid via MQTT. 
-- **Phases & Times:** When a payload is received, all timing and duration sensors are updated instantly.
-- **Events:** When a sound event occurs, the `Sleep Phase` sensor updates its state to reflect the event while keeping the last known sleep stage in the text.
-- **Attributes:** Percentages for each phase are calculated on-the-fly and stored as attributes: `(phase_duration / total_sleep) * 100`.
+The integration listens for MQTT events. When a phase event occurs:
+1.  It calculates the time elapsed since the *previous* event.
+2.  It adds those minutes to the previous phase's sensor.
+3.  It updates the **Total Sleep Duration** (excluding 'Awake' time).
+4.  It recalculates the **Efficiency %**.
+5.  Upon a `stop_tracking` event, it stops all timers and sets the main phase to **Uitgeschakeld**.
 
 ---
 
@@ -118,53 +132,64 @@ series:
     name: Awake
     color: "#FFAB91"
 ```
+
 ---
 
 # Changelog
 
 All notable changes to the **SleepAsAndroid MQTT Custom** integration will be documented in this file.
 
+## [1.4.0] - 2026-02-16
+### Added
+- **Stopwatch Engine:** Complete rewrite of the duration logic. Phases are now timed locally in Home Assistant for 100% real-time accuracy.
+- **Enhanced Sound Tracking:** Added dedicated counters for **Coughing**, **Laughing**, and **Shouting** in addition to Snoring and Talking.
+- **Event Metadata:** Sound sensors now include a `last_seen` attribute with the exact timestamp of the event.
+- **Automated "Disabled" State:** The main Sleep Phase sensor now automatically switches to "Uitgeschakeld" (Disabled) when tracking stops to clean up the dashboard.
+- **Smart Reset:** All duration and event sensors now automatically reset to zero the moment a new `start_tracking` event is received.
+- **Full Translation Support:** Added comprehensive `translation_key` support for all 17 sensors in both English and Dutch.
+
+### Changed
+- **Local Efficiency Calculation:** Efficiency is now calculated locally based on the actual duration sensors instead of relying on app-sent values.
+- **Code Optimization:** Cleaned up `__init__.py` and `sensor.py` for better performance and adherence to modern Home Assistant standards.
+- **Multi-user Logic:** Refined the unique ID generation to ensure perfect stability when running multiple instances.
+
 ## [1.3.2] and [1.3.3] - 2026-02-15
-### changed
-- **Fix:** multi-user has been fixed. 
+### Fixed
+- **Multi-user:** Fixed a bug where multiple configurations could interfere with each other.
 
 ## [1.3.1] - 2026-02-15
 ### Added
 - **Full REM Sleep Support:** Dedicated tracking for REM sleep stages.
-- **Sound Event Tracking:** New sensors for **Snoring** and **Talking** durations (in minutes).
-- **Time Analysis:** Restored sensors for **Start Time**, **Fell Asleep**, **End Time**, and **Alarm Time**.
+- **Sound Event Tracking:** New sensors for Snoring and Talking durations.
+- **Time Analysis:** Restored sensors for Start Time, Fell Asleep, End Time, and Alarm Time.
 - **Sleep Efficiency:** Added a dedicated sensor for sleep efficiency percentage.
-- **Percentage Analysis:** Added `percentage_of_total` attributes to all duration sensors.
-- **Long-Term Statistics:** Support for `total_increasing` state classes, enabling native Home Assistant history graphs and LTS.
+- **Long-Term Statistics:** Support for `total_increasing` state classes.
 
 ### Changed
-- **Intelligent Phase Tracking:** The main "Sleep Phase" sensor now features "memory," retaining the current sleep stage during sound events (e.g., `Deep Sleep (Snoring)`).
-- **Cleanup:** Removed unused ambient noise detection sensors to prevent entity clutter.
-- **Translation Update:** Fully updated Dutch (`nl.json`) and English (`strings.json`) localization.
+- **Intelligent Phase Tracking:** Phase sensor now retains the current sleep stage during sound events.
+- **Cleanup:** Removed unused ambient noise detection sensors.
 
 ## [1.3.0] - 2026-02-14
 ### Added
-- **Official HACS Support:** Added `hacs.json` and GitHub Actions for repository validation.
-- **GitHub Topics:** Repository categorized with `home-assistant`, `hacs`, and `integration` for better discoverability.
-- **Improved Metadata:** Updated `manifest.json` with official documentation and issue tracker links.
-- **Hypnogram Visualization:** Added example code for ApexCharts in the README.
+- **Official HACS Support:** Added `hacs.json` and GitHub Actions.
+- **Improved Metadata:** Updated `manifest.json` with documentation and issue tracker links.
 
 ## [1.2.0] - 2026-02-13
 ### Added
-- **Official Translation Framework:** Full implementation of `strings.json` and `translations/` folder for EN/NL support.
-- **Fell Asleep Sensor:** New dedicated sensor capturing the exact timestamp of the first transition to a sleep stage.
-- **Long-Term Statistics:** Added `state_class: measurement` to all numerical sensors to enable native Home Assistant history analysis and energy-style dashboards.
-
-### Changed
-- **Numerical-First Architecture:** Sensors now return numerical values (integers/floats) instead of strings for native graphing and recorder support.
-- **Smart Pause Handling:** Improved session initialization when using delayed starts (`sleep_tracking_paused`).
-- **Auto-Recovery:** The tracker now auto-starts if a phase event is received but a start event was missed.
+- **Translation Framework:** Implementation of `strings.json` and `translations/` folder.
+- **Fell Asleep Sensor:** Captured exact timestamp of first sleep transition.
+- **Numerical-First Architecture:** Sensors now return floats/integers for native graphing.
 
 ## [1.1.0] - 2026-02-13
 ### Added
-- **Multi-Device Support:** Initial support for tracking multiple devices simultaneously.
-- **Sound Events:** Added tracking for snoring, coughing, talking, laughing, and yawning.
+- **Multi-Device Support:** Initial support for tracking multiple devices.
+- **Sound Events:** Initial tracking for coughing, laughing, and yawning.
 
 ## [1.0.0] - 2025-02-13
 ### Added
-- **Initial Release:** Basic MQTT sleep tracking functionality including start, stop, and phase events.
+- **Initial Release:** Basic MQTT sleep tracking functionality.
+
+---
+**Disclaimer:** This integration is a custom community project. Neither the developer (@Roeli1996) nor this integration are affiliated with, endorsed by, or in any way officially connected to the official SleepAsAndroid app or Urbandroid Team.
+
+**Developed by [@Roeli1996](https://github.com/Roeli1996)**

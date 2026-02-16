@@ -8,179 +8,167 @@ from homeassistant.components.sensor import (
 from homeassistant.const import UnitOfTime, PERCENTAGE
 from homeassistant.core import callback
 from homeassistant.components.mqtt import async_subscribe
+from homeassistant.util import dt as dt_util
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up SleepAsAndroid MQTT sensors."""
-    topic = config_entry.data.get("topic", "SleepAsAndroid/test")
-    device_name = config_entry.data.get("device_name", "SleepAsAndroid")
-    # We gebruiken de entry_id om elk apparaat uniek te maken in de registry
+    topic = config_entry.data["topic"]
+    device_name = config_entry.data["device_name"]
     entry_id = config_entry.entry_id
     
     entities = []
+    duration_map = {}
 
-    # 1. Duur Sensoren
-    stats_config = [
-        {"id": "light_sleep", "name": "Light Sleep Duration", "icon": "mdi:sleep"},
-        {"id": "deep_sleep", "name": "Deep Sleep Duration", "icon": "mdi:sleep-circle"},
-        {"id": "rem", "name": "REM Sleep Duration", "icon": "mdi:moon-waning-crescent"},
-        {"id": "awake", "name": "Awake Duration", "icon": "mdi:weather-sunny"},
-        {"id": "snore", "name": "Snoring Duration", "icon": "mdi:account-voice"},
-        {"id": "talk", "name": "Talking Duration", "icon": "mdi:comment-text-outline"},
+    # 1. Duur sensoren
+    duration_stats = [
+        {"id": "light_sleep_duration", "icon": "mdi:sleep"},
+        {"id": "deep_sleep_duration", "icon": "mdi:sleep-circle"},
+        {"id": "rem_sleep_duration", "icon": "mdi:moon-waning-crescent"},
+        {"id": "awake_duration", "icon": "mdi:weather-sunny"},
+        {"id": "total_sleep_duration", "icon": "mdi:sigma"},
     ]
-    for stat in stats_config:
-        entities.append(SleepAsAndroidDurationSensor(hass, config_entry, stat, topic, device_name, entry_id))
+    for stat in duration_stats:
+        s = SleepAsAndroidDurationSensor(config_entry, stat, device_name)
+        duration_map[stat["id"]] = s
+        entities.append(s)
 
-    # 2. Totaal en Efficiëntie
-    entities.append(SleepAsAndroidTotalSleepSensor(hass, config_entry, topic, device_name, entry_id))
-    entities.append(SleepAsAndroidEfficiencySensor(hass, config_entry, topic, device_name, entry_id))
-    
-    # 3. Tijdstip Sensoren
-    time_sensors = [
-        {"id": "start_time_display", "name": "Start Time", "icon": "mdi:clock-start"},
-        {"id": "fell_asleep_time", "name": "Fell Asleep", "icon": "mdi:bed-clock"},
-        {"id": "stop_time_display", "name": "End Time", "icon": "mdi:clock-end"},
-        {"id": "alarm_time_display", "name": "Alarm Time", "icon": "mdi:alarm"},
+    # 2. Geluid Tellers
+    sound_map = {}
+    sound_types = [
+        {"id": "snoring_count", "icon": "mdi:account-voice", "event_key": "snore"},
+        {"id": "talking_count", "icon": "mdi:comment-text-outline", "event_key": "talk"},
+        {"id": "coughing_count", "icon": "mdi:emoticon-sick", "event_key": "cough"},
+        {"id": "laughing_count", "icon": "mdi:emoticon-laugh", "event_key": "laugh"},
+        {"id": "shouting_count", "icon": "mdi:account-alert", "event_key": "shout"},
     ]
-    for ts in time_sensors:
-        entities.append(SleepAsAndroidTimeSensor(hass, config_entry, ts, topic, device_name, entry_id))
+    for snd in sound_types:
+        s = SleepAsAndroidSoundSensor(config_entry, snd, device_name)
+        sound_map[snd["event_key"]] = s
+        entities.append(s)
+
+    # 3. Tijdstippen
+    fell_asleep_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "fell_asleep", "icon": "mdi:bed-clock"}, device_name)
+    start_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "start_time", "icon": "mdi:clock-start"}, device_name)
+    stop_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "stop_time", "icon": "mdi:clock-end"}, device_name)
+    alarm_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "alarm_time", "icon": "mdi:alarm"}, device_name)
     
-    # 4. Fase Sensor
-    entities.append(SleepAsAndroidPhaseSensor(hass, config_entry, topic, device_name, entry_id))
+    entities.extend([fell_asleep_s, start_time_s, stop_time_s, alarm_time_s])
+
+    # 4. Efficiency & Phase
+    eff_s = SleepAsAndroidEfficiencySensor(config_entry, device_name, start_time_s, stop_time_s, duration_map["total_sleep_duration"])
+    entities.append(eff_s)
+    
+    entities.append(SleepAsAndroidPhaseSensor(
+        topic, config_entry, device_name, 
+        fell_asleep_s, start_time_s, stop_time_s, alarm_time_s, duration_map, sound_map, eff_s
+    ))
+    
+    entities.append(SleepAsAndroidLastMessageSensor(topic, config_entry, device_name))
     
     async_add_entities(entities)
 
 class SleepAsAndroidBaseSensor(SensorEntity):
-    """Base class met unieke device identificatie per config entry."""
-    def __init__(self, config_entry, topic, device_name, entry_id):
-        self._topic = topic
+    def __init__(self, config_entry, device_name):
         self._device_name = device_name
-        self._entry_id = entry_id
+        self._entry_id = config_entry.entry_id
+        self._attr_has_entity_name = True # Belangrijk voor translation_key
 
     @property
     def device_info(self):
-        # Door de entry_id hier te gebruiken, MOET HA er een apart apparaat van maken
         return {
             "identifiers": {("sleep_mqtt", self._entry_id)},
             "name": self._device_name,
             "manufacturer": "Urbandroid",
-            "model": "SleepAsAndroid Custom",
+            "model": "Custom SleepAsAndroid MQTT Sensors",
         }
 
 class SleepAsAndroidDurationSensor(SleepAsAndroidBaseSensor):
-    def __init__(self, hass, config_entry, stat, topic, device_name, entry_id):
-        super().__init__(config_entry, topic, device_name, entry_id)
-        self._stat_id = stat["id"]
-        self._attr_name = f"{device_name} {stat['name']}"
-        self._attr_unique_id = f"{entry_id}_{stat['id']}"
-        self._state = 0.0
-        self._total_time = 0.0
-        self._attr_icon = stat["icon"]
+    def __init__(self, config_entry, stat, device_name):
+        super().__init__(config_entry, device_name)
+        self._attr_translation_key = stat["id"]
+        self._attr_unique_id = f"{self._entry_id}_{stat['id']}"
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_icon = stat["icon"]
+        self._state = 0.0
 
-    async def async_added_to_hass(self):
-        @callback
-        def message_received(msg):
-            try:
-                data = json.loads(msg.payload)
-                self._total_time = float(data.get("total", 0.0))
-                if self._stat_id in data:
-                    self._state = float(data[self._stat_id])
-                    self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError): pass
-        await async_subscribe(self.hass, self._topic, message_received)
+    @property
+    def native_value(self): return round(self._state, 1)
+
+    @property
+    def extra_state_attributes(self):
+        return {"duration_in_hours": f"{round(self._state / 60, 2)} u"}
+
+class SleepAsAndroidSoundSensor(SleepAsAndroidBaseSensor):
+    def __init__(self, config_entry, snd, device_name):
+        super().__init__(config_entry, device_name)
+        self._attr_translation_key = snd["id"]
+        self._attr_unique_id = f"{self._entry_id}_{snd['id']}"
+        self._attr_icon = snd["icon"]
+        self._state = 0
+        self._last_seen = None
 
     @property
     def native_value(self): return self._state
 
     @property
     def extra_state_attributes(self):
-        pct = 0.0
-        if self._total_time > 0:
-            pct = round((self._state / self._total_time) * 100, 1)
-        return {"percentage_of_total": f"{pct}%"}
+        return {"last_seen": self._last_seen}
 
-class SleepAsAndroidTimeSensor(SleepAsAndroidBaseSensor):
-    def __init__(self, hass, config_entry, ts, topic, device_name, entry_id):
-        super().__init__(config_entry, topic, device_name, entry_id)
-        self._ts_id = ts["id"]
-        self._attr_name = f"{device_name} {ts['name']}"
-        self._attr_unique_id = f"{entry_id}_{ts['id']}"
-        self._state = "Unknown"
-        self._attr_icon = ts["icon"]
-
-    async def async_added_to_hass(self):
-        @callback
-        def message_received(msg):
-            try:
-                data = json.loads(msg.payload)
-                if self._ts_id in data:
-                    self._state = str(data[self._ts_id])
-                    self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError): pass
-        await async_subscribe(self.hass, self._topic, message_received)
+class SleepAsAndroidTimestampSensor(SleepAsAndroidBaseSensor):
+    def __init__(self, config_entry, ts, device_name):
+        super().__init__(config_entry, device_name)
+        self._attr_translation_key = ts["id"]
+        self._attr_unique_id = f"{self._entry_id}_{ts['id']}"
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
+        self._attr_icon = ts.get("icon")
+        self._state = None
 
     @property
     def native_value(self): return self._state
 
 class SleepAsAndroidEfficiencySensor(SleepAsAndroidBaseSensor):
-    def __init__(self, hass, config_entry, topic, device_name, entry_id):
-        super().__init__(config_entry, topic, device_name, entry_id)
-        self._attr_name = f"{device_name} Efficiency"
-        self._attr_unique_id = f"{entry_id}_efficiency"
-        self._state = 0.0
+    def __init__(self, config_entry, device_name, start_sensor, stop_sensor, total_sleep_sensor):
+        super().__init__(config_entry, device_name)
+        self._attr_translation_key = "efficiency"
+        self._attr_unique_id = f"{self._entry_id}_efficiency_calc"
         self._attr_native_unit_of_measurement = PERCENTAGE
-        self._attr_icon = "mdi:chart-donut"
-
-    async def async_added_to_hass(self):
-        @callback
-        def message_received(msg):
-            try:
-                data = json.loads(msg.payload)
-                if "efficiency" in data:
-                    self._state = float(data["efficiency"]) * 100
-                    self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError): pass
-        await async_subscribe(self.hass, self._topic, message_received)
-
-    @property
-    def native_value(self): return self._state
-
-class SleepAsAndroidTotalSleepSensor(SleepAsAndroidBaseSensor):
-    def __init__(self, hass, config_entry, topic, device_name, entry_id):
-        super().__init__(config_entry, topic, device_name, entry_id)
-        self._attr_name = f"{device_name} Total Sleep"
-        self._attr_unique_id = f"{entry_id}_total_sleep"
+        self._attr_icon = "mdi:chart-line"
+        self._start_sensor = start_sensor
+        self._stop_sensor = stop_sensor
+        self._total_sleep_sensor = total_sleep_sensor
         self._state = 0.0
-        self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
-        self._attr_device_class = SensorDeviceClass.DURATION
-        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
 
-    async def async_added_to_hass(self):
-        @callback
-        def message_received(msg):
-            try:
-                data = json.loads(msg.payload)
-                if "total" in data:
-                    self._state = float(data["total"])
-                    self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError): pass
-        await async_subscribe(self.hass, self._topic, message_received)
+    def update_efficiency(self):
+        if self._start_sensor._state and self._total_sleep_sensor._state > 0:
+            end_t = self._stop_sensor._state or dt_util.utcnow()
+            total_time = (end_t - self._start_sensor._state).total_seconds() / 60
+            if total_time > 0:
+                calc = (self._total_sleep_sensor._state / total_time) * 100
+                self._state = round(min(calc, 100.0), 1)
+                self.async_write_ha_state()
 
     @property
     def native_value(self): return self._state
 
 class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
-    def __init__(self, hass, config_entry, topic, device_name, entry_id):
-        super().__init__(config_entry, topic, device_name, entry_id)
-        self._attr_name = f"{device_name} Sleep Phase"
-        self._attr_unique_id = f"{entry_id}_sleep_phase"
-        self._state = "Unknown"
-        self._last_phase = "Unknown"
-        self._attr_icon = "mdi:bed"
+    def __init__(self, topic, config_entry, device_name, fell_asleep, start_t, stop_t, alarm_t, durations, sounds, efficiency):
+        super().__init__(config_entry, device_name)
+        self._topic = topic
+        self._attr_translation_key = "sleep_phase"
+        self._attr_unique_id = f"{self._entry_id}_sleep_phase"
+        self._fell_asleep_s = fell_asleep
+        self._start_s = start_t
+        self._stop_s = stop_t
+        self._alarm_s = alarm_t
+        self._durations = durations
+        self._sounds = sounds
+        self._eff_s = efficiency
+        self._state = "Uitgeschakeld"
+        self._last_event_time = None
+        self._current_phase_id = None
 
     async def async_added_to_hass(self):
         @callback
@@ -188,23 +176,82 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
             try:
                 data = json.loads(msg.payload)
                 event = data.get("event", "").lower()
-                new_p = None
-                if "rem" in event: new_p = "REM"
-                elif "deep" in event: new_p = "Deep Sleep"
-                elif "light" in event: new_p = "Light Sleep"
-                elif "awake" in event: new_p = "Awake"
-                if new_p:
-                    self._last_phase = new_p
-                    self._state = new_p
-                if "snore" in event:
-                    self._state = f"{self._last_phase} (Snoring)"
-                    self._attr_icon = "mdi:account-voice"
-                elif "talk" in event:
-                    self._state = f"{self._last_phase} (Talking)"
-                    self._attr_icon = "mdi:comment-text-outline"
+                now = dt_util.utcnow()
+
+                new_phase_id = None
+                if "light" in event: new_phase_id = "light_sleep_duration"
+                elif "deep" in event: new_phase_id = "deep_sleep_duration"
+                elif "rem" in event: new_phase_id = "rem_sleep_duration"
+                elif "awake" in event: new_phase_id = "awake_duration"
+
+                if event == "start_tracking" or (new_phase_id and self._stop_s._state):
+                    self._start_s._state = now
+                    self._stop_s._state = None
+                    self._fell_asleep_s._state = None
+                    self._alarm_s._state = None
+                    self._eff_s._state = 0.0
+                    for s in self._durations.values(): s._state = 0.0
+                    for s in self._sounds.values(): 
+                        s._state = 0
+                        s._last_seen = None
+                        s.async_write_ha_state()
+                    self._last_event_time = now
+                    self._current_phase_id = None
+                    [s.async_write_ha_state() for s in [self._start_s, self._stop_s, self._fell_asleep_s, self._alarm_s]]
+
+                if self._last_event_time and self._current_phase_id:
+                    diff = (now - self._last_event_time).total_seconds() / 60
+                    if self._current_phase_id in self._durations:
+                        self._durations[self._current_phase_id]._state += diff
+                    if self._current_phase_id != "awake_duration":
+                        self._durations["total_sleep_duration"]._state += diff
+                    for s in self._durations.values(): s.async_write_ha_state()
+                    self._eff_s.update_efficiency()
+
+                for sid, s_ent in self._sounds.items():
+                    if sid in event:
+                        s_ent._state += 1
+                        s_ent._last_seen = now
+                        s_ent.async_write_ha_state()
+                
+                if "alarm" in event:
+                    self._alarm_s._state = now
+                    self._alarm_s.async_write_ha_state()
+
+                if new_phase_id:
+                    self._current_phase_id = new_phase_id
+                    self._state = new_phase_id.replace("_duration", "").replace("_", " ").capitalize()
+                    self._last_event_time = now
+                    if new_phase_id != "awake_duration" and self._fell_asleep_s._state is None:
+                        self._fell_asleep_s._state = now
+                        self._fell_asleep_s.async_write_ha_state()
+
+                if "stop_tracking" in event:
+                    self._stop_s._state = now
+                    self._state = "Uitgeschakeld"
+                    self._current_phase_id = None
+                    self._stop_s.async_write_ha_state()
+                    self._eff_s.update_efficiency()
+
                 self.async_write_ha_state()
-            except (json.JSONDecodeError, ValueError): pass
+            except Exception as e: _LOGGER.error("MQTT Error: %s", e)
         await async_subscribe(self.hass, self._topic, message_received)
 
+    @property
+    def native_value(self): return self._state
+
+class SleepAsAndroidLastMessageSensor(SleepAsAndroidBaseSensor):
+    def __init__(self, topic, config_entry, device_name):
+        super().__init__(config_entry, device_name)
+        self._topic = topic
+        self._attr_translation_key = "last_mqtt_message"
+        self._attr_unique_id = f"{self._entry_id}_last_mqtt_message"
+        self._state = "Geen bericht"
+    async def async_added_to_hass(self):
+        @callback
+        def message_received(msg):
+            self._state = msg.payload
+            self.async_write_ha_state()
+        await async_subscribe(self.hass, self._topic, message_received)
     @property
     def native_value(self): return self._state

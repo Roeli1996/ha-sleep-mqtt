@@ -7,26 +7,33 @@
         "description": "Configure the MQTT-connection for SleepAsAndroid.",
         "data": {
           "device_name": "Device Name",
-          "topic": "MQTT Topic (ex. SleepAsAndroid/test)"
+          "topic": "MQTT Topic (ex. SleepAsAndroid/Roeli1996)"
         }
       }
+    },
+    "abort": {
+      "already_configured": "This topic is already configured for a device."
     }
   },
   "entity": {
     "sensor": {
       "sleep_phase": { "name": "Sleep Phase" },
-      "total_sleep": { "name": "Total Sleep" },
+      "total_sleep_duration": { "name": "Total Sleep Duration" },
+      "light_sleep_duration": { "name": "Light Sleep Duration" },
+      "deep_sleep_duration": { "name": "Deep Sleep Duration" },
+      "rem_sleep_duration": { "name": "REM Sleep Duration" },
+      "awake_duration": { "name": "Awake Duration" },
       "efficiency": { "name": "Sleep Efficiency" },
-      "light_sleep": { "name": "Light Sleep Duration" },
-      "deep_sleep": { "name": "Deep Sleep Duration" },
-      "rem": { "name": "REM Sleep Duration" },
-      "awake": { "name": "Awake Duration" },
-      "snore": { "name": "Snoring Duration" },
-      "talk": { "name": "Talking Duration" },
-      "start_time_display": { "name": "Start Time" },
-      "fell_asleep_time": { "name": "Fell Asleep" },
-      "stop_time_display": { "name": "End Time" },
-      "alarm_time_display": { "name": "Alarm Time" }
+      "start_time": { "name": "Start Time" },
+      "fell_asleep": { "name": "Fell Asleep" },
+      "stop_time": { "name": "End Time" },
+      "alarm_time": { "name": "Alarm Time" },
+      "snoring_count": { "name": "Snoring Count" },
+      "talking_count": { "name": "Talking Count" },
+      "coughing_count": { "name": "Coughing Count" },
+      "laughing_count": { "name": "Laughing Count" },
+      "shouting_count": { "name": "Shouting Count" },
+      "last_mqtt_message": { "name": "Last MQTT Message" }
     }
   }
 }
