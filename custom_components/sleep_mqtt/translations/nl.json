@@ -4,29 +4,36 @@
     "step": {
       "user": {
         "title": "Custom SleepAsAndroid MQTT Sensors",
-        "description": "Configureer de MQTT-verbinding voor de SleepAsAndroid sensoren.",
+        "description": "Configureer de MQTT-verbinding voor SleepAsAndroid.",
         "data": {
           "device_name": "Apparaatnaam",
-          "topic": "MQTT Topic (bijv. SleepAsAndroid/test)"
+          "topic": "MQTT Topic (bijv. SleepAsAndroid/Roeli1996)"
         }
       }
+    },
+    "abort": {
+      "already_configured": "Dit topic is al geconfigureerd voor een apparaat."
     }
   },
   "entity": {
     "sensor": {
       "sleep_phase": { "name": "Slaapfase" },
-      "total_sleep": { "name": "Totale Slaapduur" },
-      "efficiency": { "name": "Slaap Efficiëntie" },
-      "light_sleep": { "name": "Lichte Slaap Duur" },
-      "deep_sleep": { "name": "Diepe Slaap Duur" },
-      "rem": { "name": "REM Slaap Duur" },
-      "awake": { "name": "Wakker Duur" },
-      "snore": { "name": "Snurken Duur" },
-      "talk": { "name": "Praten Duur" },
-      "start_time_display": { "name": "Starttijd" },
-      "fell_asleep_time": { "name": "In slaap gevallen" },
-      "stop_time_display": { "name": "Eindtijd" },
-      "alarm_time_display": { "name": "Wekker Tijd" }
+      "total_sleep_duration": { "name": "Totale slaapduur" },
+      "light_sleep_duration": { "name": "Lichte slaapduur" },
+      "deep_sleep_duration": { "name": "Diepe slaapduur" },
+      "rem_sleep_duration": { "name": "REM slaapduur" },
+      "awake_duration": { "name": "Duur wakker" },
+      "efficiency": { "name": "Slaapefficiëntie" },
+      "start_time": { "name": "Starttijd" },
+      "fell_asleep": { "name": "In slaap gevallen" },
+      "stop_time": { "name": "Eindtijd" },
+      "alarm_time": { "name": "Alarmtijd" },
+      "snoring_count": { "name": "Aantal snurkmeldingen" },
+      "talking_count": { "name": "Aantal praatmeldingen" },
+      "coughing_count": { "name": "Aantal hoestmeldingen" },
+      "laughing_count": { "name": "Aantal lachmeldingen" },
+      "shouting_count": { "name": "Aantal schreeuwmeldingen" },
+      "last_mqtt_message": { "name": "Laatste MQTT bericht" }
     }
   }
 }
