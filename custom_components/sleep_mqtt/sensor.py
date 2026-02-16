@@ -20,39 +20,43 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities = []
     duration_map = {}
 
+    # 1. Duur sensoren
     duration_stats = [
-        {"id": "light_sleep", "name": "Light Sleep Duration", "icon": "mdi:sleep"},
-        {"id": "deep_sleep", "name": "Deep Sleep Duration", "icon": "mdi:sleep-circle"},
-        {"id": "rem", "name": "REM Sleep Duration", "icon": "mdi:moon-waning-crescent"},
-        {"id": "awake", "name": "Awake Duration", "icon": "mdi:weather-sunny"},
-        {"id": "total", "name": "Total Sleep Duration", "icon": "mdi:sigma"},
+        {"id": "light_sleep_duration", "icon": "mdi:sleep"},
+        {"id": "deep_sleep_duration", "icon": "mdi:sleep-circle"},
+        {"id": "rem_sleep_duration", "icon": "mdi:moon-waning-crescent"},
+        {"id": "awake_duration", "icon": "mdi:weather-sunny"},
+        {"id": "total_sleep_duration", "icon": "mdi:sigma"},
     ]
     for stat in duration_stats:
         s = SleepAsAndroidDurationSensor(config_entry, stat, device_name)
         duration_map[stat["id"]] = s
         entities.append(s)
 
+    # 2. Geluid Tellers
     sound_map = {}
     sound_types = [
-        {"id": "snore", "name": "Snoring Count", "icon": "mdi:account-voice"},
-        {"id": "talk", "name": "Talking Count", "icon": "mdi:comment-text-outline"},
-        {"id": "cough", "name": "Coughing Count", "icon": "mdi:emoticon-sick"},
-        {"id": "laugh", "name": "Laughing Count", "icon": "mdi:emoticon-laugh"},
-        {"id": "shout", "name": "Shouting Count", "icon": "mdi:account-alert"},
+        {"id": "snoring_count", "icon": "mdi:account-voice", "event_key": "snore"},
+        {"id": "talking_count", "icon": "mdi:comment-text-outline", "event_key": "talk"},
+        {"id": "coughing_count", "icon": "mdi:emoticon-sick", "event_key": "cough"},
+        {"id": "laughing_count", "icon": "mdi:emoticon-laugh", "event_key": "laugh"},
+        {"id": "shouting_count", "icon": "mdi:account-alert", "event_key": "shout"},
     ]
     for snd in sound_types:
         s = SleepAsAndroidSoundSensor(config_entry, snd, device_name)
-        sound_map[snd["id"]] = s
+        sound_map[snd["event_key"]] = s
         entities.append(s)
 
-    fell_asleep_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "fell_asleep", "name": "Fell Asleep", "icon": "mdi:bed-clock"}, device_name)
-    start_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "start_time", "name": "Start Time", "icon": "mdi:clock-start"}, device_name)
-    stop_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "stop_time", "name": "End Time", "icon": "mdi:clock-end"}, device_name)
-    alarm_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "alarm_time", "name": "Alarm Time", "icon": "mdi:alarm"}, device_name)
+    # 3. Tijdstippen
+    fell_asleep_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "fell_asleep", "icon": "mdi:bed-clock"}, device_name)
+    start_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "start_time", "icon": "mdi:clock-start"}, device_name)
+    stop_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "stop_time", "icon": "mdi:clock-end"}, device_name)
+    alarm_time_s = SleepAsAndroidTimestampSensor(config_entry, {"id": "alarm_time", "icon": "mdi:alarm"}, device_name)
     
     entities.extend([fell_asleep_s, start_time_s, stop_time_s, alarm_time_s])
 
-    eff_s = SleepAsAndroidEfficiencySensor(config_entry, device_name, start_time_s, stop_time_s, duration_map["total"])
+    # 4. Efficiency & Phase
+    eff_s = SleepAsAndroidEfficiencySensor(config_entry, device_name, start_time_s, stop_time_s, duration_map["total_sleep_duration"])
     entities.append(eff_s)
     
     entities.append(SleepAsAndroidPhaseSensor(
@@ -68,7 +72,7 @@ class SleepAsAndroidBaseSensor(SensorEntity):
     def __init__(self, config_entry, device_name):
         self._device_name = device_name
         self._entry_id = config_entry.entry_id
-        self._attr_has_entity_name = False
+        self._attr_has_entity_name = True # Belangrijk voor translation_key
 
     @property
     def device_info(self):
@@ -82,11 +86,12 @@ class SleepAsAndroidBaseSensor(SensorEntity):
 class SleepAsAndroidDurationSensor(SleepAsAndroidBaseSensor):
     def __init__(self, config_entry, stat, device_name):
         super().__init__(config_entry, device_name)
-        self._attr_name = f"{device_name} {stat['name']}"
+        self._attr_translation_key = stat["id"]
         self._attr_unique_id = f"{self._entry_id}_{stat['id']}"
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_icon = stat["icon"]
         self._state = 0.0
 
     @property
@@ -99,8 +104,8 @@ class SleepAsAndroidDurationSensor(SleepAsAndroidBaseSensor):
 class SleepAsAndroidSoundSensor(SleepAsAndroidBaseSensor):
     def __init__(self, config_entry, snd, device_name):
         super().__init__(config_entry, device_name)
-        self._attr_name = f"{device_name} {snd['name']}"
-        self._attr_unique_id = f"{self._entry_id}_{snd['id']}_count"
+        self._attr_translation_key = snd["id"]
+        self._attr_unique_id = f"{self._entry_id}_{snd['id']}"
         self._attr_icon = snd["icon"]
         self._state = 0
         self._last_seen = None
@@ -115,7 +120,7 @@ class SleepAsAndroidSoundSensor(SleepAsAndroidBaseSensor):
 class SleepAsAndroidTimestampSensor(SleepAsAndroidBaseSensor):
     def __init__(self, config_entry, ts, device_name):
         super().__init__(config_entry, device_name)
-        self._attr_name = f"{device_name} {ts['name']}"
+        self._attr_translation_key = ts["id"]
         self._attr_unique_id = f"{self._entry_id}_{ts['id']}"
         self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_icon = ts.get("icon")
@@ -127,9 +132,10 @@ class SleepAsAndroidTimestampSensor(SleepAsAndroidBaseSensor):
 class SleepAsAndroidEfficiencySensor(SleepAsAndroidBaseSensor):
     def __init__(self, config_entry, device_name, start_sensor, stop_sensor, total_sleep_sensor):
         super().__init__(config_entry, device_name)
-        self._attr_name = f"{device_name} Efficiency"
+        self._attr_translation_key = "efficiency"
         self._attr_unique_id = f"{self._entry_id}_efficiency_calc"
         self._attr_native_unit_of_measurement = PERCENTAGE
+        self._attr_icon = "mdi:chart-line"
         self._start_sensor = start_sensor
         self._stop_sensor = stop_sensor
         self._total_sleep_sensor = total_sleep_sensor
@@ -151,7 +157,7 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
     def __init__(self, topic, config_entry, device_name, fell_asleep, start_t, stop_t, alarm_t, durations, sounds, efficiency):
         super().__init__(config_entry, device_name)
         self._topic = topic
-        self._attr_name = f"{device_name} Sleep Phase"
+        self._attr_translation_key = "sleep_phase"
         self._attr_unique_id = f"{self._entry_id}_sleep_phase"
         self._fell_asleep_s = fell_asleep
         self._start_s = start_t
@@ -173,10 +179,10 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                 now = dt_util.utcnow()
 
                 new_phase_id = None
-                if "light" in event: new_phase_id = "light_sleep"
-                elif "deep" in event: new_phase_id = "deep_sleep"
-                elif "rem" in event: new_phase_id = "rem"
-                elif "awake" in event: new_phase_id = "awake"
+                if "light" in event: new_phase_id = "light_sleep_duration"
+                elif "deep" in event: new_phase_id = "deep_sleep_duration"
+                elif "rem" in event: new_phase_id = "rem_sleep_duration"
+                elif "awake" in event: new_phase_id = "awake_duration"
 
                 if event == "start_tracking" or (new_phase_id and self._stop_s._state):
                     self._start_s._state = now
@@ -197,8 +203,8 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                     diff = (now - self._last_event_time).total_seconds() / 60
                     if self._current_phase_id in self._durations:
                         self._durations[self._current_phase_id]._state += diff
-                    if self._current_phase_id != "awake":
-                        self._durations["total"]._state += diff
+                    if self._current_phase_id != "awake_duration":
+                        self._durations["total_sleep_duration"]._state += diff
                     for s in self._durations.values(): s.async_write_ha_state()
                     self._eff_s.update_efficiency()
 
@@ -214,9 +220,9 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
 
                 if new_phase_id:
                     self._current_phase_id = new_phase_id
-                    self._state = new_phase_id.replace("_", " ").capitalize()
+                    self._state = new_phase_id.replace("_duration", "").replace("_", " ").capitalize()
                     self._last_event_time = now
-                    if new_phase_id != "awake" and self._fell_asleep_s._state is None:
+                    if new_phase_id != "awake_duration" and self._fell_asleep_s._state is None:
                         self._fell_asleep_s._state = now
                         self._fell_asleep_s.async_write_ha_state()
 
@@ -238,7 +244,7 @@ class SleepAsAndroidLastMessageSensor(SleepAsAndroidBaseSensor):
     def __init__(self, topic, config_entry, device_name):
         super().__init__(config_entry, device_name)
         self._topic = topic
-        self._attr_name = f"{device_name} Last MQTT Message"
+        self._attr_translation_key = "last_mqtt_message"
         self._attr_unique_id = f"{self._entry_id}_last_mqtt_message"
         self._state = "Geen bericht"
     async def async_added_to_hass(self):
