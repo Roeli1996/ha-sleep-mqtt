@@ -11,29 +11,42 @@
         }
       }
     },
+
     "abort": {
+
       "already_configured": "This topic is already configured for a device."
     }
   },
   "entity": {
     "sensor": {
-      "sleep_phase": { "name": "Sleep Phase" },
+      "sleep_phase": {
+        "name": "Sleep Phase",
+        "state": {
+          "disabled": "Disabled",
+          "tracking": "Tracking",
+          "tracking_paused": "Tracking (paused)",
+          "light_sleep": "Light sleep",
+          "deep_sleep": "Deep sleep",
+          "rem_sleep": "REM sleep",
+          "awake": "Awake"
+        }
+      },
       "total_sleep_duration": { "name": "Total Sleep Duration" },
-      "light_sleep_duration": { "name": "Light Sleep Duration" },
-      "deep_sleep_duration": { "name": "Deep Sleep Duration" },
-      "rem_sleep_duration": { "name": "REM Sleep Duration" },
-      "awake_duration": { "name": "Awake Duration" },
-      "efficiency": { "name": "Sleep Efficiency" },
-      "start_time": { "name": "Start Time" },
-      "fell_asleep": { "name": "Fell Asleep" },
-      "stop_time": { "name": "End Time" },
-      "alarm_time": { "name": "Alarm Time" },
-      "snoring_count": { "name": "Snoring Count" },
-      "talking_count": { "name": "Talking Count" },
-      "coughing_count": { "name": "Coughing Count" },
-      "laughing_count": { "name": "Laughing Count" },
-      "shouting_count": { "name": "Shouting Count" },
-      "last_mqtt_message": { "name": "Last MQTT Message" }
+      "light_sleep_duration": { "name": "Light sleep duration" },
+      "deep_sleep_duration": { "name": "Deep sleep duration" },
+      "rem_sleep_duration": { "name": "REM sleep duration" },
+      "awake_duration": { "name": "Awake duration" },
+      "efficiency": { "name": "Sleep efficiency" },
+      "start_time": { "name": "Start time" },
+      "fell_asleep": { "name": "Fell asleep" },
+      "stop_time": { "name": "End time" },
+      "alarm_time": { "name": "Last alarm activity" },
+      "snoring_count": { "name": "Snoring count" },
+      "talking_count": { "name": "Talking count" },
+      "coughing_count": { "name": "Coughing count" },
+      "laughing_count": { "name": "Laughing count" },
+      "shouting_count": { "name": "Shouting count" },
+      "last_mqtt_message": { "name": "Last MQTT message" }
     }
   }
 }
