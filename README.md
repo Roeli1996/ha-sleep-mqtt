@@ -81,6 +81,9 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 ---
 
 # Changelog
+## [1.4.2] - 2026-02-17
+### Fixed
+- **Start time:** Fixed a bug.
 
 ## [1.4.1] - 2026-02-17
 ### Added
