@@ -7,7 +7,7 @@
         "description": "Configureer de MQTT-verbinding voor SleepAsAndroid.",
         "data": {
           "device_name": "Apparaatnaam",
-          "topic": "MQTT Topic (bijv. SleepAsAndroid/Roeli1996)"
+          "topic": "MQTT Topic (bijv. SleepAsAndroid/Arne)"
         }
       }
     },
@@ -17,7 +17,18 @@
   },
   "entity": {
     "sensor": {
-      "sleep_phase": { "name": "Slaapfase" },
+      "sleep_phase": {
+        "name": "Slaapfase",
+        "state": {
+          "disabled": "Uitgeschakeld",
+          "tracking": "Aan het tracken",
+          "tracking_paused": "Tracken (gepauzeerd)",
+          "light_sleep": "Lichte slaap",
+          "deep_sleep": "Diepe slaap",
+          "rem_sleep": "REM slaap",
+          "awake": "Wakker"
+        }
+      },
       "total_sleep_duration": { "name": "Totale slaapduur" },
       "light_sleep_duration": { "name": "Lichte slaapduur" },
       "deep_sleep_duration": { "name": "Diepe slaapduur" },

@@ -79,7 +79,7 @@ class SleepAsAndroidBaseSensor(SensorEntity):
         return {
             "identifiers": {("sleep_mqtt", self._entry_id)},
             "name": self._device_name,
-            "manufacturer": "Urbandroid",
+            "manufacturer": "Roeli1996",
             "model": "Custom SleepAsAndroid MQTT Sensors",
         }
 
