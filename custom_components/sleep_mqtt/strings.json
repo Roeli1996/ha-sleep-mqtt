@@ -7,7 +7,7 @@
         "description": "Configure the MQTT-connection for SleepAsAndroid.",
         "data": {
           "device_name": "Device Name",
-          "topic": "MQTT Topic (ex. SleepAsAndroid/Roeli)"
+          "topic": "MQTT Topic (ex. SleepAsAndroid/Arne)"
         }
       }
     },
