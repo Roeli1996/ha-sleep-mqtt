@@ -55,7 +55,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     
     entities.extend([fell_asleep_s, start_time_s, stop_time_s, alarm_time_s])
 
-    # 4. Engine
+    # 4. Engine & Phase
     eff_s = SleepAsAndroidEfficiencySensor(config_entry, device_name, start_time_s, stop_time_s, duration_map["total_sleep_duration"])
     entities.append(eff_s)
     
@@ -173,7 +173,19 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
 
     @property
     def extra_state_attributes(self):
-        return {"active_timer": self._current_phase_id}
+        attrs = {"active_timer": self._current_phase_id}
+        
+        # Bereken percentages ten opzichte van tijd in bed
+        if self._start_s._state:
+            end_t = self._stop_s._state or dt_util.utcnow()
+            total_min = (end_t - self._start_s._state).total_seconds() / 60
+            if total_min > 0:
+                attrs["deep_sleep_percentage"] = round((self._durations["deep_sleep_duration"]._state / total_min) * 100, 1)
+                attrs["light_sleep_percentage"] = round((self._durations["light_sleep_duration"]._state / total_min) * 100, 1)
+                attrs["rem_sleep_percentage"] = round((self._durations["rem_sleep_duration"]._state / total_min) * 100, 1)
+                attrs["awake_percentage"] = round((self._durations["awake_duration"]._state / total_min) * 100, 1)
+        
+        return attrs
 
     async def async_added_to_hass(self):
         @callback
@@ -185,15 +197,18 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
 
                 # 1. Start / Pause / Resume
                 if event in ["sleep_tracking_started", "sleep_tracking_paused", "sleep_tracking_resumed"]:
-                    _LOGGER.debug("Tracking event voor %s: %s", self._device_name, event)
                     
-                    if event != "sleep_tracking_resumed":
-                        if self._last_msg_time:
-                            self._update_all_timers(now)
+                    # SESSIE-BEVEILIGING: Alleen resetten als we niet al aan het tracken zijn
+                    if event == "sleep_tracking_started":
+                        if self._state in ["tracking", "tracking_paused", "light_sleep", "deep_sleep", "rem_sleep", "awake"]:
+                            _LOGGER.debug("Nieuwe tracking_started genegeerd: sessie is al actief.")
+                            return
                         
+                        # Echte nieuwe sessie: reset alles
                         self._start_s._state = now
                         self._stop_s._state = None
                         self._fell_asleep_s._state = None
+                        self._alarm_s._state = None
                         for s in self._durations.values():
                             s._state = 0.0
                             s.async_write_ha_state()
@@ -202,23 +217,22 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                             s._last_seen = None
                             s._total_duration_sec = 0.0
                             s.async_write_ha_state()
-                    else:
-                        self._update_all_timers(now)
-                    
+
                     if event == "sleep_tracking_paused":
+                        self._update_all_timers(now)
                         self._state = "tracking_paused"
                     else:
+                        self._update_all_timers(now)
                         self._state = "tracking"
 
                     self._last_msg_time = now
-                    # Tijdens pauze/start/hervatting telt de tijd als 'wakker'
                     self._current_phase_id = "awake_duration"
                     self._active_sound_id = None
 
                     self._start_s.async_write_ha_state()
                     self._stop_s.async_write_ha_state()
                     self._fell_asleep_s.async_write_ha_state()
-                    self._eff_s.async_write_ha_state()
+                    self._alarm_s.async_write_ha_state()
                     self.async_write_ha_state()
                     return
 
@@ -263,15 +277,15 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                         self._active_sound_id = sid
                         s_ent.async_write_ha_state()
 
-                # 6. Alarm logic
-                if "alarm" in event:
+                # 6. Verbeterde Alarm Logica: Enkel bij alarm_alert_start
+                if "alarm_alert_start" in event:
                     self._alarm_s._state = now
                     self._alarm_s.async_write_ha_state()
                     self._state = "awake"
                     self._current_phase_id = "awake_duration"
 
                 self.async_write_ha_state()
-            except Exception as e: _LOGGER.error("MQTT Error: %s", e)
+            except Exception as e: _LOGGER.error("MQTT Error in PhaseSensor: %s", e)
 
         await async_subscribe(self.hass, self._topic, message_received)
 
