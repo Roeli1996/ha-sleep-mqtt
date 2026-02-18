@@ -30,9 +30,9 @@
         }
       },
       "total_sleep_duration": { "name": "Totale slaapduur" },
-      "light_sleep_duration": { "name": "Lichte slaapduur" },
-      "deep_sleep_duration": { "name": "Diepe slaapduur" },
-      "rem_sleep_duration": { "name": "REM slaapduur" },
+      "light_sleep_duration": { "name": "Duur lichte slaap" },
+      "deep_sleep_duration": { "name": "Duur diepe slaap" },
+      "rem_sleep_duration": { "name": "Duur REM slaap" },
       "awake_duration": { "name": "Duur wakker" },
       "efficiency": { "name": "Slaapefficiëntie" },
       "start_time": { "name": "Starttijd" },
