@@ -11,9 +11,7 @@
         }
       }
     },
-
     "abort": {
-
       "already_configured": "This topic is already configured for a device."
     }
   },
@@ -31,7 +29,7 @@
           "awake": "Awake"
         }
       },
-      "total_sleep_duration": { "name": "Total Sleep Duration" },
+      "total_sleep_duration": { "name": "Total sleep duration" },
       "light_sleep_duration": { "name": "Light sleep duration" },
       "deep_sleep_duration": { "name": "Deep sleep duration" },
       "rem_sleep_duration": { "name": "REM sleep duration" },
