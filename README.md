@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![Maintainer](https://img.shields.io/badge/MAINTAINER-Roeli1996-blue.svg?style=for-the-badge)](https://github.com/Roeli1996)
-[![Version](https://img.shields.io/badge/VERSION-1.4.3-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
+[![Version](https://img.shields.io/badge/VERSION-1.4.4-green.svg?style=for-the-badge)](https://github.com/Roeli1996/ha-sleep-mqtt/releases)
 [![License](https://img.shields.io/badge/LICENSE-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
 This custom integration brings advanced sleep tracking analytics from the **SleepAsAndroid** app directly into Home Assistant via MQTT. It features live statistics calculation, a **Real-time Hypnogram**, and full support for Long-Term Statistics.
@@ -27,11 +27,12 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 ## ✨ Features
 
 * **Real-time Tracking:** Calculates sleep phases (Light, Deep, REM, Awake) and durations second-by-second locally in Home Assistant.
-* **Session Integrity Protection:** Prevents mid-night resets. If the app sends a new start event while a session is already active (e.g., due to a connection drop), the integration maintains the current data.
-* **Phase Percentage Attributes:** The main Sleep Phase sensor now includes live-calculated attributes for the percentage of Deep, Light, REM, and Awake time relative to total time in bed.
+* **Session Integrity Protection:** Prevents mid-night resets. Includes a **12-hour stale check** to ensure new sessions always start fresh if the previous day was not closed correctly.
+* **Phase Percentage Attributes:** The main Sleep Phase sensor includes live-calculated attributes for the percentage of Deep, Light, REM, and Awake time relative to total time in bed.
+* **Decimal Hour Tracking:** All duration sensors now include a `duration_hours` attribute for easy graphing and decimal-based analytics.
 * **Dynamic Sound Duration:** Measures the exact time spent snoring, talking, coughing, laughing, or shouting by tracking intervals between MQTT events.
 * **Self-Calculated Efficiency:** Local calculation of sleep efficiency based on actual sleep time vs. total time in bed.
-* **Strict Alarm Logic:** Automatically updates the sleep phase to **Awake** and captures the exact timestamp only when the alarm actually starts alerting (`alarm_alert_start`).
+* **Strict Alarm Logic:** Support for `alarm_alert_start` and `alarm_alert_dismiss` to cleanly manage the "Awake" phase and end-of-session.
 * **Multi-User Support:** Add multiple devices/users with unique MQTT topics and custom names in the UI.
 * **Fully Localized:** Language-independent architecture using native Home Assistant translation keys (`strings.json` and `nl.json` support).
 
@@ -42,10 +43,10 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 ### Sleep Tracking & Phases
 | Entity | Description |
 | :--- | :--- |
-| **Sleep Phase** | The current state (Light, Deep, REM, Awake). Status is fully localized via translations. Includes attributes: `deep_sleep_percentage`, `light_sleep_percentage`, `rem_sleep_percentage`, `awake_percentage`. |
+| **Sleep Phase** | Current state (Light, Deep, REM, Awake). Status is fully localized. Includes attributes: `deep_sleep_percentage`, `light_sleep_percentage`, `rem_sleep_percentage`, `awake_percentage`. |
 | **Sleep Efficiency** | Real-time percentage of actual sleep vs. total time in bed. |
-| **Total Sleep Duration** | Cumulative minutes spent in Light, Deep, and REM sleep combined. |
-| **Phase Durations** | Individual sensors for Light, Deep, REM, and Awake duration in minutes. |
+| **Total Sleep Duration** | Cumulative minutes spent in Light, Deep, and REM sleep. Includes `duration_hours` attribute. |
+| **Phase Durations** | Individual sensors for Light, Deep, REM, and Awake duration in minutes. Includes `duration_hours` attribute. |
 
 ### Timestamps
 | Entity | Description |
@@ -53,13 +54,13 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 | **Start Time** | Exact time when tracking (or delay) was initiated. |
 | **Fell Asleep** | Timestamp of first sleep detection (Light, Deep, REM, or Not_Awake). |
 | **End Time** | Exact time when tracking was stopped. |
-| **Alarm Time** | Timestamp of the last **actual** alarm alert (`alarm_alert_start`). |
+| **Last Alarm Activity** | Timestamp of the last alarm alert (`alarm_alert_start`) or dismiss. |
 
 ### Sound & Event Counters
 | Entity | Description |
 | :--- | :--- |
 | **Event Counters** | Individual sensors for Snoring, Talking, Coughing, Laughing, and Shouting. |
-| **Sound Attributes** | Each sound sensor includes `total_duration_minutes` and `last_seen` timestamp. |
+| **Sound Attributes** | Each sound sensor includes `total_duration_minutes`, `total_duration_hours` and `last_seen` timestamp. |
 
 ### Diagnostics
 | Entity | Description |
@@ -87,6 +88,14 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 ---
 
 # Changelog
+
+## [1.4.4] - 2026-02-20
+### Added
+- **Alarm Dismiss Trigger:** Added `alarm_alert_dismiss` as a definitive end-of-session trigger to prevent sensors staying in "Awake" mode after the morning alarm.
+- **Stale Session Check:** Implemented a 12-hour timeout; new tracking events always reset the data if the last update was >12h ago.
+- **Decimal Attributes:** Added `duration_hours` (for sleep phases) and `total_duration_hours` (for sounds) as decimal attributes.
+### Fixed
+- **Cumulative Data Bug:** Fixed an issue where a session wouldn't reset if an alarm was dismissed after tracking had already stopped (status now forced to `disabled`).
 
 ## [1.4.3] - 2026-02-18
 ### Added

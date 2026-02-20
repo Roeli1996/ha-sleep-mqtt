@@ -38,7 +38,7 @@
       "start_time": { "name": "Starttijd" },
       "fell_asleep": { "name": "In slaap gevallen" },
       "stop_time": { "name": "Eindtijd" },
-      "alarm_time": { "name": "Alarmtijd" },
+      "alarm_time": { "name": "Laatste alarm activiteit" },
       "snoring_count": { "name": "Aantal snurkmeldingen" },
       "talking_count": { "name": "Aantal praatmeldingen" },
       "coughing_count": { "name": "Aantal hoestmeldingen" },
