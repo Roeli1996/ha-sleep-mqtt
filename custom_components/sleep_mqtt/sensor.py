@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import timedelta
 from homeassistant.components.sensor import (
     SensorEntity,
     SensorDeviceClass,
@@ -97,6 +98,12 @@ class SleepAsAndroidDurationSensor(SleepAsAndroidBaseSensor):
     @property
     def native_value(self): return round(self._state, 1)
 
+    @property
+    def extra_state_attributes(self):
+        return {
+            "duration_hours": round(self._state / 60, 2)
+        }
+
 class SleepAsAndroidSoundSensor(SleepAsAndroidBaseSensor):
     def __init__(self, config_entry, snd, device_name):
         super().__init__(config_entry, device_name)
@@ -114,7 +121,8 @@ class SleepAsAndroidSoundSensor(SleepAsAndroidBaseSensor):
     def extra_state_attributes(self):
         return {
             "last_seen": self._last_seen,
-            "total_duration_minutes": round(self._total_duration_sec / 60, 2)
+            "total_duration_minutes": round(self._total_duration_sec / 60, 2),
+            "total_duration_hours": round(self._total_duration_sec / 3600, 2)
         }
 
 class SleepAsAndroidTimestampSensor(SleepAsAndroidBaseSensor):
@@ -175,7 +183,6 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
     def extra_state_attributes(self):
         attrs = {"active_timer": self._current_phase_id}
         
-        # Bereken percentages ten opzichte van tijd in bed
         if self._start_s._state:
             end_t = self._stop_s._state or dt_util.utcnow()
             total_min = (end_t - self._start_s._state).total_seconds() / 60
@@ -198,13 +205,16 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                 # 1. Start / Pause / Resume
                 if event in ["sleep_tracking_started", "sleep_tracking_paused", "sleep_tracking_resumed"]:
                     
-                    # SESSIE-BEVEILIGING: Alleen resetten als we niet al aan het tracken zijn
+                    is_stale = False
+                    if self._last_msg_time:
+                        if (now - self._last_msg_time).total_seconds() > 43200: # 12 uur
+                            is_stale = True
+
                     if event == "sleep_tracking_started":
-                        if self._state in ["tracking", "tracking_paused", "light_sleep", "deep_sleep", "rem_sleep", "awake"]:
+                        if self._state not in ["disabled", "unknown"] and not is_stale:
                             _LOGGER.debug("Nieuwe tracking_started genegeerd: sessie is al actief.")
                             return
                         
-                        # Echte nieuwe sessie: reset alles
                         self._start_s._state = now
                         self._stop_s._state = None
                         self._fell_asleep_s._state = None
@@ -248,15 +258,28 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                     self.async_write_ha_state()
                     return
 
+                # 3. Alarm Dismiss (Forceer einde sessie)
+                if event == "alarm_alert_dismiss":
+                    self._update_all_timers(now)
+                    if self._stop_s._state is None:
+                        self._stop_s._state = now
+                        self._stop_s.async_write_ha_state()
+                    self._state = "disabled"
+                    self._current_phase_id = None
+                    self._active_sound_id = None
+                    self._eff_s.update_efficiency()
+                    self.async_write_ha_state()
+                    return
+
                 self._update_all_timers(now)
 
-                # 3. Fell Asleep Check
+                # 4. Fell Asleep Check
                 is_sleep_event = any(x in event for x in ["light_sleep", "deep_sleep", "rem", "not_awake"])
                 if is_sleep_event and self._fell_asleep_s._state is None:
                     self._fell_asleep_s._state = now
                     self._fell_asleep_s.async_write_ha_state()
 
-                # 4. Phase Mapping
+                # 5. Phase Mapping
                 new_phase_id = None
                 if "light_sleep" in event: new_phase_id = "light_sleep"
                 elif "deep_sleep" in event: new_phase_id = "deep_sleep"
@@ -269,7 +292,7 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                     self._state = new_phase_id
                     self._active_sound_id = None
 
-                # 5. Sound Events
+                # 6. Sound Events
                 for sid, s_ent in self._sounds.items():
                     if sid in event:
                         s_ent._state += 1
@@ -277,12 +300,13 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                         self._active_sound_id = sid
                         s_ent.async_write_ha_state()
 
-                # 6. Verbeterde Alarm Logica: Enkel bij alarm_alert_start
+                # 7. Alarm Logica
                 if "alarm_alert_start" in event:
                     self._alarm_s._state = now
                     self._alarm_s.async_write_ha_state()
-                    self._state = "awake"
-                    self._current_phase_id = "awake_duration"
+                    if self._state != "disabled":
+                        self._state = "awake"
+                        self._current_phase_id = "awake_duration"
 
                 self.async_write_ha_state()
             except Exception as e: _LOGGER.error("MQTT Error in PhaseSensor: %s", e)
