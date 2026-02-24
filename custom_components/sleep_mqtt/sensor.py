@@ -182,7 +182,6 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
     @property
     def extra_state_attributes(self):
         attrs = {"active_timer": self._current_phase_id}
-        
         if self._start_s._state:
             end_t = self._stop_s._state or dt_util.utcnow()
             total_min = (end_t - self._start_s._state).total_seconds() / 60
@@ -191,7 +190,6 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                 attrs["light_sleep_percentage"] = round((self._durations["light_sleep_duration"]._state / total_min) * 100, 1)
                 attrs["rem_sleep_percentage"] = round((self._durations["rem_sleep_duration"]._state / total_min) * 100, 1)
                 attrs["awake_percentage"] = round((self._durations["awake_duration"]._state / total_min) * 100, 1)
-        
         return attrs
 
     async def async_added_to_hass(self):
@@ -202,52 +200,64 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                 event = str(data.get("event", "")).lower().strip()
                 now = dt_util.utcnow()
 
-                # 1. Start / Pause / Resume
-                if event in ["sleep_tracking_started", "sleep_tracking_paused", "sleep_tracking_resumed"]:
-                    
-                    is_stale = False
-                    if self._last_msg_time:
-                        if (now - self._last_msg_time).total_seconds() > 43200: # 12 uur
-                            is_stale = True
-
-                    if event == "sleep_tracking_started":
-                        if self._state not in ["disabled", "unknown"] and not is_stale:
-                            _LOGGER.debug("Nieuwe tracking_started genegeerd: sessie is al actief.")
-                            return
-                        
-                        self._start_s._state = now
-                        self._stop_s._state = None
-                        self._fell_asleep_s._state = None
-                        self._alarm_s._state = None
-                        for s in self._durations.values():
-                            s._state = 0.0
-                            s.async_write_ha_state()
-                        for s in self._sounds.values():
-                            s._state = 0
-                            s._last_seen = None
-                            s._total_duration_sec = 0.0
-                            s.async_write_ha_state()
-
-                    if event == "sleep_tracking_paused":
-                        self._update_all_timers(now)
-                        self._state = "tracking_paused"
-                    else:
-                        self._update_all_timers(now)
-                        self._state = "tracking"
-
-                    self._last_msg_time = now
-                    self._current_phase_id = "awake_duration"
-                    self._active_sound_id = None
-
+                # Hulpfunctie voor volledige reset
+                def reset_session():
+                    self._start_s._state = now
+                    self._stop_s._state = None
+                    self._fell_asleep_s._state = None
+                    self._alarm_s._state = None
+                    for s in self._durations.values():
+                        s._state = 0.0
+                        s.async_write_ha_state()
+                    for s in self._sounds.values():
+                        s._state = 0
+                        s._last_seen = None
+                        s._total_duration_sec = 0.0
+                        s.async_write_ha_state()
                     self._start_s.async_write_ha_state()
                     self._stop_s.async_write_ha_state()
                     self._fell_asleep_s.async_write_ha_state()
                     self._alarm_s.async_write_ha_state()
+
+                # Check voor automatische start / stale check
+                is_stale = False
+                if self._last_msg_time:
+                    if (now - self._last_msg_time).total_seconds() > 43200: # 12 uur
+                        is_stale = True
+
+                # Slaap events lijst
+                is_sleep_event = any(x in event for x in ["light_sleep", "deep_sleep", "rem", "not_awake", "awake"])
+
+                # 1. Start / Auto-Start logica
+                if event == "sleep_tracking_started" or (is_sleep_event and self._state == "disabled"):
+                    if event == "sleep_tracking_started" and self._state != "disabled" and not is_stale:
+                        _LOGGER.debug("Tracking al actief, start event genegeerd.")
+                        return
+                    
+                    _LOGGER.info("Sessie gestart (Event: %s, Auto-start: %s)", event, self._state == "disabled")
+                    reset_session()
+                    self._state = "tracking"
+                    self._current_phase_id = "awake_duration"
+                    self._last_msg_time = now
+                    self.async_write_ha_state()
+                    
+                    if event == "sleep_tracking_started":
+                        return # Stop hier als het alleen de start-bevestiging was
+
+                # 2. Pause / Resume
+                if event == "sleep_tracking_paused":
+                    self._update_all_timers(now)
+                    self._state = "tracking_paused"
+                    self.async_write_ha_state()
+                    return
+                elif event == "sleep_tracking_resumed":
+                    self._update_all_timers(now)
+                    self._state = "tracking"
                     self.async_write_ha_state()
                     return
 
-                # 2. Stop
-                if event == "sleep_tracking_stopped":
+                # 3. Stop events
+                if event in ["sleep_tracking_stopped", "alarm_alert_dismiss"]:
                     self._update_all_timers(now)
                     self._stop_s._state = now
                     self._state = "disabled"
@@ -258,28 +268,15 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                     self.async_write_ha_state()
                     return
 
-                # 3. Alarm Dismiss (Forceer einde sessie)
-                if event == "alarm_alert_dismiss":
-                    self._update_all_timers(now)
-                    if self._stop_s._state is None:
-                        self._stop_s._state = now
-                        self._stop_s.async_write_ha_state()
-                    self._state = "disabled"
-                    self._current_phase_id = None
-                    self._active_sound_id = None
-                    self._eff_s.update_efficiency()
-                    self.async_write_ha_state()
-                    return
-
+                # 4. Verwerk actieve timers voor binnenkomende data
                 self._update_all_timers(now)
 
-                # 4. Fell Asleep Check
-                is_sleep_event = any(x in event for x in ["light_sleep", "deep_sleep", "rem", "not_awake"])
-                if is_sleep_event and self._fell_asleep_s._state is None:
+                # 5. Fell Asleep Check
+                if is_sleep_event and "awake" not in event and self._fell_asleep_s._state is None:
                     self._fell_asleep_s._state = now
                     self._fell_asleep_s.async_write_ha_state()
 
-                # 5. Phase Mapping
+                # 6. Phase Mapping
                 new_phase_id = None
                 if "light_sleep" in event: new_phase_id = "light_sleep"
                 elif "deep_sleep" in event: new_phase_id = "deep_sleep"
@@ -292,7 +289,7 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                     self._state = new_phase_id
                     self._active_sound_id = None
 
-                # 6. Sound Events
+                # 7. Sound Events
                 for sid, s_ent in self._sounds.items():
                     if sid in event:
                         s_ent._state += 1
@@ -300,7 +297,7 @@ class SleepAsAndroidPhaseSensor(SleepAsAndroidBaseSensor):
                         self._active_sound_id = sid
                         s_ent.async_write_ha_state()
 
-                # 7. Alarm Logica
+                # 8. Alarm Logica
                 if "alarm_alert_start" in event:
                     self._alarm_s._state = now
                     self._alarm_s.async_write_ha_state()
