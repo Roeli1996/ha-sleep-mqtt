@@ -1,7 +1,7 @@
 {
   "domain": "sleep_mqtt",
   "name": "Custom SleepAsAndroid MQTT Sensors",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "documentation": "https://github.com/Roeli1996/ha-sleep-mqtt",
   "issue_tracker": "https://github.com/Roeli1996/ha-sleep-mqtt/issues",
   "dependencies": ["mqtt"],
