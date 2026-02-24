@@ -90,6 +90,10 @@ The integration provides a comprehensive set of sensors to monitor your rest. Be
 # Changelog
 
 ## [1.4.4] - 2026-02-20
+### Fixed
+- **Auto start:** Fixed an issue where a session wouldn't start because of delayed start in Sleep As Android.
+
+## [1.4.4] - 2026-02-20
 ### Added
 - **Alarm Dismiss Trigger:** Added `alarm_alert_dismiss` as a definitive end-of-session trigger to prevent sensors staying in "Awake" mode after the morning alarm.
 - **Stale Session Check:** Implemented a 12-hour timeout; new tracking events always reset the data if the last update was >12h ago.
